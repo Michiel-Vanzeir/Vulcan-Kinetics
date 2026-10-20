@@ -1,7 +1,7 @@
 """Signal detector: turns keystroke events into counted signals per compose context.
 
-Consumes KeyEvent streams produced by the capture agent (`capture-agent/agent/`). Wiring
-the two together is out of scope for this module; it is tested with synthetic streams.
+Consumes KeyEvent streams produced by the capture agent (`capture-agent/agent/pipeline.py`).
+The detector itself is tested with synthetic streams.
 
 The detector measures, it doesn't interpret: hesitation labels (TYPING / HESITATING /
 STRUGGLING) come from the backend scoring module, which consumes these payloads.
@@ -64,6 +64,8 @@ class DetectorConfig:
     agent_version: str = "0.1.0"
     os: str = "windows"
     pause_ms: int = 800
+    long_pause_ms: int = 2_000
+    rewrite_min_deletions: int = 3  # deleting at least this many, then typing again
     deletion_burst_keys: int = 3  # a burst is MORE than this many deletions...
     deletion_burst_window_ms: int = 500  # ...within this window
     idle_flush_ms: int = 10_000
@@ -81,6 +83,7 @@ class _Counters:
 
     events: int = 0
     pause_count: int = 0
+    long_pauses: int = 0
     longest_pause_ms: int = 0
     gap_sum_ms: int = 0
     gap_count: int = 0
@@ -89,6 +92,7 @@ class _Counters:
     deletes: int = 0
     deletion_bursts: int = 0
     longest_deletion_run: int = 0
+    rewrite_loops: int = 0
     longest_fluency_ms: int = 0
     chars_typed: int = 0
     content_chars: int = 0
@@ -118,6 +122,7 @@ class _Context:
     last_key_ts: int | None = None
     run_start_ts: int | None = None
     pause_reported: bool = False
+    long_pause_reported: bool = False
     ellipsis_reported: bool = False
     recent_deletions: deque[int] = field(default_factory=deque)
     in_burst: bool = False
@@ -224,6 +229,7 @@ class SignalDetector:
             trigger=trigger,
             gap_before_trigger_ms=None if ctx.last_key_ts is None else now_ms - ctx.last_key_ts,
             pause_count=c.pause_count,
+            long_pause_count=c.long_pauses,
             longest_pause_ms=c.longest_pause_ms,
             mean_interkey_ms=c.gap_sum_ms / c.gap_count if c.gap_count else None,
             active_typing_ms=c.active_typing_ms,
@@ -231,6 +237,7 @@ class SignalDetector:
             deletes=c.deletes,
             deletion_bursts=c.deletion_bursts,
             longest_deletion_run=c.longest_deletion_run,
+            rewrite_loops=c.rewrite_loops,
             deletion_rate=deletions / c.chars_typed if c.chars_typed else 0.0,
             fluency_run_seconds=current_run_ms / 1000,
             longest_fluency_run_seconds=max(c.longest_fluency_ms, current_run_ms) / 1000,
@@ -326,6 +333,9 @@ class SignalDetector:
             self._on_paste(ctx, event.pasted_char_count or 0)
 
         if event.kind not in (KeyKind.BACKSPACE, KeyKind.DELETE):
+            if event.kind == KeyKind.CHAR and ctx.deletion_run >= self._config.rewrite_min_deletions:
+                # Deleted a chunk and started typing again: one rewrite loop.
+                ctx.counters.rewrite_loops += 1
             ctx.in_burst = False
             ctx.deletion_run = 0
             ctx.recent_deletions.clear()
@@ -346,6 +356,8 @@ class SignalDetector:
                     c.pause_count += 1
                     triggers.append(Trigger.PAUSE)
                 c.longest_pause_ms = max(c.longest_pause_ms, gap)
+                if gap > self._config.long_pause_ms and not ctx.long_pause_reported:
+                    c.long_pauses += 1
                 self._end_run(ctx)
                 if self._ellipsis_due(ctx, gap):
                     triggers.append(Trigger.PLACEHOLDER)
@@ -357,6 +369,7 @@ class SignalDetector:
                 c.gap_count += 1
                 self._baseline.observe_gap(self._config.user_id, gap)
         ctx.pause_reported = False
+        ctx.long_pause_reported = False
         ctx.ellipsis_reported = False
         ctx.last_key_ts = event.ts
         return triggers
@@ -372,6 +385,9 @@ class SignalDetector:
                 ctx.counters.longest_pause_ms = max(ctx.counters.longest_pause_ms, idle)
                 self._end_run(ctx)
                 triggers.append(Trigger.PAUSE)
+            if idle > self._config.long_pause_ms and not ctx.long_pause_reported:
+                ctx.long_pause_reported = True
+                ctx.counters.long_pauses += 1
             if self._ellipsis_due(ctx, idle):
                 triggers.append(Trigger.PLACEHOLDER)
         trigger = next((t for t in _TRIGGER_PRIORITY if t in triggers), None)

@@ -2,6 +2,7 @@
 
 import re
 import unicodedata
+from dataclasses import dataclass
 
 from agent.config import (
     BROWSER_PROCESSES,
@@ -10,6 +11,15 @@ from agent.config import (
     SENSITIVE_FIELD_WORDS,
     WEB_SURFACES,
 )
+
+@dataclass(frozen=True, slots=True)
+class Surface:
+    """The focused text field: a stable id, the surface name and whether to skip it."""
+
+    id: str
+    name: str
+    is_sensitive: bool
+
 
 _SENSITIVE_FIELD = re.compile(
     r"\b(" + "|".join(re.escape(word) for word in SENSITIVE_FIELD_WORDS) + r")\b"

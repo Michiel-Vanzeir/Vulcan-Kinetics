@@ -1,0 +1,25 @@
+# Common misspellings, mapped to the canonical spelling used in vocab.yaml.
+# Format: canonical form: [misspelling, misspelling, ...]
+# Write misspellings in lowercase without accents; matching ignores case and accents,
+# so missing accents ("preavis", "conge") never need an entry here.
+# Each misspelling must be a single word. The canonical form may be several words.
+
+opzegtermijn: [opzegtermein, opzegtermjin, opzegtermyn]
+eindejaarspremie: [eindejaarpremie, eindjaarspremie, eindejaarspremi, eindjaarpremie]
+preavis: [praevis, preavies, preavi]
+payslip: [paysilp, payslipp, playslip]
+loonbrief: [loonbrif, loonbreif]
+maaltijdcheque: [maaltijdcheck, maaltijdscheque, maaltijdcheq]
+maaltijdcheques: [maaltijdchecks, maaltijdscheques]
+cheque repas: [chequerepas, chequesrepas]
+ziekteverlof: [ziekenverlof, ziekteverloff, ziekterverlof]
+vakantiegeld: [vakantiegelt, vacantiegeld, vakantigeld]
+bedrijfswagen: [bedrijfswagon, bedrijfwagen]
+groepsverzekering: [groepverzekering, groepsverzekring]
+bedrijfsvoorheffing: [bedrijfsvoorheffng, bedrijfsvoorhefing, bedrijfvoorheffing]
+teletravail: [teletravial, teletavail]
+licenciement: [licensiement, licenciment, licencement]
+severance: [severence, severeance, severanse]
+proefperiode: [proefpereode, proefperiod, proeftperiode]
+ecocheques: [ecochecks, ecocheks]
+thuiswerkvergoeding: [thuiswerkvergoding, thuiswerkvergeoding]

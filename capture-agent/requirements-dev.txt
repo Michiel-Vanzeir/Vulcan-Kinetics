@@ -1,2 +1,7 @@
 -r requirements.txt
 pytest==9.1.1
+# Backend dependencies, only for tests/test_e2e.py (runs Neo4J-backend in-process)
+flask==3.1.3
+pydantic==2.14.1
+neo4j==6.4.1
+python-dotenv==1.2.4

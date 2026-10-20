@@ -1,3 +1,5 @@
+langdetect==1.0.9
+nltk==3.10.3
 pynput==1.8.2
 pyyaml==6.0.3
 uiautomation==2.0.29

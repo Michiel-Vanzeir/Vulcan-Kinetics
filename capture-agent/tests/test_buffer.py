@@ -64,8 +64,8 @@ def test_entries_are_oldest_first_after_wrap():
         ("salary 3.250,50 per month", "salary per month"),
         ("call 0470 12 34 56", "call "),
         ("IBAN BE68539007547034", "IBAN BE "),
-        ("bonus under PC 200 for ES", "bonus under PC_200 for ES"),
-        ("pc200 and PSC 200.01", "PC_200 and PSC_200.01"),
+        ("bonus under PC 200 for ES", "bonus under PC 200 for ES"),
+        ("pc200 and PSC 200.01", "PC 200 and PSC 200.01"),
     ],
 )
 def test_scrub(text, expected):

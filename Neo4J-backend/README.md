@@ -174,6 +174,17 @@ app/embedding.py       embed() + build_knowledge_text()
 app/extraction.py      stub for the LLM document reader (see Document ingestion)
 ```
 
+## Capture-agent routes (`app/signals.py`)
+
+`POST /analyze` takes one capture-agent payload (counts, flags, ids, topic tokens; see the
+docstring at the top of `app/signals.py`), validates it with Pydantic and hands it to
+`ExpertiseFilter.process()`. `POST /experts` takes `{"topics": [...]}` and returns the people the
+filter rates as experts, best first. Free-text strings are rejected with 400. The filter's
+SQLite store is `whoknows.db` (git-ignored; `WHOKNOWS_FILTER_DB` overrides) and is only used from
+one dedicated thread, since SQLite connections can't be shared across Flask's request threads.
+
+Tests: `uv run --with pytest pytest tests`.
+
 ## Expertise filter (`expertise_filter.py`)
 
 A standalone, stdlib-only module that consumes payloads from the capture agent

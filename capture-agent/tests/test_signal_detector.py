@@ -51,6 +51,21 @@ def test_pause_trigger_from_tick_fires_once(typist):
     assert typist.payloads[0].pause_count == 1
 
 
+def test_long_pause_counted_once(typist):
+    typist.type("hello")
+    typist.wait(3000, tick_every_ms=100)
+    typist.type("w")
+    payload = typist.detector.manual_trigger("c1")
+    total = sum(p.long_pause_count for p in typist.payloads) + payload.long_pause_count
+    assert total == 1
+
+
+def test_rewrite_loop(typist):
+    typist.type("the bonsu" + BACKSPACE * 3 + "nus")
+    payload = typist.detector.manual_trigger("c1")
+    assert payload.rewrite_loops == 1
+
+
 def test_short_gaps_are_not_pauses(typist):
     typist.type("hello", interval_ms=800)
     assert typist.payloads == []

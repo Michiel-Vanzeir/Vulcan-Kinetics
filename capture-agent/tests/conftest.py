@@ -1,5 +1,7 @@
 """Shared fixtures: a detector with a fake clock and a Typist that builds synthetic event streams."""
 
+from dataclasses import replace
+
 import pytest
 
 from signal_detector import DetectorConfig, KeyEvent, KeyKind, SignalDetector, SignalPayload
@@ -83,6 +85,19 @@ class Typist:
     @property
     def triggers(self) -> list[str]:
         return [p.trigger for p in self.payloads]
+
+
+def make_payload(topics: tuple[str, ...] = ("notice_period", "country_ES")) -> SignalPayload:
+    """A real detector payload: 'maybe ' typed in one Teams field, with topics filled in."""
+    clock = FakeClock()
+    detector = SignalDetector(DetectorConfig(user_id="emp_014", clock=clock))
+    payload = None
+    for char in "maybe ":
+        clock.now_ms += 100
+        event = KeyEvent(ts=clock.now_ms, kind=KeyKind.CHAR, char=char,
+                         surface="teams_desktop", context_id="c_1")
+        payload = detector.handle_event(event) or payload
+    return replace(payload, topics=topics)
 
 
 @pytest.fixture
