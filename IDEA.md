@@ -373,7 +373,7 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
 ## Submission checklist (before 16:00)
 
-- [ ] **Delete `previous-round/` from the repo** (reference only; it would count in the Aikido scan).
+- [x] **Delete `previous-round/` from the repo** (reference only; it would count in the Aikido scan).
 - [ ] Final Aikido scan; screenshot showing repo name and remaining vulnerabilities.
 - [ ] Repo is public; `README.md` has working setup and run steps; no secrets committed.
 - [ ] Pitch deck (ppt/pdf) with demo screenshots or an embedded recording, tested on another machine.

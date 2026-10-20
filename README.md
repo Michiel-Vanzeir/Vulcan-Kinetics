@@ -137,7 +137,7 @@ node --test preview-api.test.mjs preview-ui.test.mjs
 ```
 
 The previews use local sans-serif fonts, SD Worx blue (`#006dd8`), white and neutral text.
-Profile images are local assets. No code is imported or run from `previous-round/`.
+Profile images are local assets.
 
 ## Other project components
 
