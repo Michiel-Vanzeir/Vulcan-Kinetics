@@ -132,6 +132,8 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 
 ## Architecture
 
+System diagram: [`docs/Structure.png`](docs/Structure.png). More team reference material lives in `docs/`.
+
 ```
 Chrome extension (Manifest v3)              Backend (Python, FastAPI or Flask: TBD)
 - content script on the active text field   - /analyze: text in, topics + hesitation signals out

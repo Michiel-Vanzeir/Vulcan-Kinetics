@@ -11,6 +11,7 @@ Four teammates work in parallel, each with their own AI assistant, so the code h
 ## 0. Before you start any task
 
 1. Read `IDEA.md`. It describes what we are building *right now*. Do not build features that aren't listed there.
+   Team reference material (architecture diagrams, explainers) lives in `docs/`. Check it when you need to understand how the parts fit together. `docs/Structure.png` is the system diagram.
 2. Run `git pull` (or ask the human to) before you start editing. Four people are pushing all the time.
 3. Stay inside the area of the task you were given. Don't refactor, rename, or reformat files you weren't asked to touch. That causes merge conflicts for the others.
 4. If the task changes the idea or scope, update `IDEA.md` in the same change (see section 7).
