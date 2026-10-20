@@ -8,7 +8,7 @@ these counts into TYPING / HESITATING / STRUGGLING.
   itself is tested with synthetic streams (`../tests/test_signal_detector.py`).
 - Output: `SignalPayload`. The field list and the "explicitly NOT sent" list are in `IDEA.md`
   under "Signal detector output"; `../agent/backend_payload.py` converts it to the backend's
-  wire format before `../agent/sender.py` sends it.
+  wire format before `../agent/transport.py` sends it.
 - Privacy proof: `SignalDetector.build_payload()` in `detector.py` is the only function that
   produces a payload. It never reads the private text window, and `SignalPayload` has no field
   that can carry text (enforced by `test_payload_has_no_free_text_fields`).

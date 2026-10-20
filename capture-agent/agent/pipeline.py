@@ -3,16 +3,19 @@
 Runs entirely on the capture worker thread, so the detector needs no locking. Text only
 ever lives in the ring buffer and the detector's private window; what reaches the sender
 is a SignalPayload (counts) with topics from the fixed vocabulary.
+
+Wiring point: _emit() is where every detector payload passes. It calls extract_topics() once to
+fill `topics` and hands the payload to Transport.send() once.
 """
 
 import hashlib
+import threading
 from dataclasses import replace
 from enum import StrEnum
 
-from agent.backend_payload import BackendPayloads
 from agent.buffer import BACKSPACE, NEWLINE, KeyEntry, RingBuffer
-from agent.sender import Sender
 from agent.surfaces import Surface
+from agent.transport import Transport
 from signal_detector import KeyEvent, KeyKind, SignalDetector, SignalPayload
 from topic_extractor import extract_topics
 
@@ -44,13 +47,13 @@ class Pipeline:
         self,
         buffer: RingBuffer,
         detector: SignalDetector,
-        converter: BackendPayloads,
-        sender: Sender,
+        transport: Transport,
+        show_experts: bool = False,
     ):
         self._buffer = buffer
         self._detector = detector
-        self._converter = converter
-        self._sender = sender
+        self._transport = transport
+        self._show_experts = show_experts
         self._focused: Surface | None = None
         self._surface_ids: dict[str, str] = {}
         self.payloads = 0
@@ -77,7 +80,9 @@ class Pipeline:
             self._emit(self._event(target, KeyKind.SUBMIT, ts_ms))
             self._buffer.clear(target.id)
         elif action == Action.MANUAL:
-            self._emit(self._detector.manual_trigger(context_id(target.id)))
+            payload = self._emit(self._detector.manual_trigger(context_id(target.id)))
+            if payload is not None and self._show_experts:
+                self._ask_experts(list(payload.topics))
         elif action == Action.CHAR and char:
             self._buffer.append(KeyEntry(char=char, ts=ts_ms, surface_id=target.id))
             self._emit(self._event(target, KeyKind.CHAR, ts_ms, char=char))
@@ -110,12 +115,24 @@ class Pipeline:
             KeyEvent(ts=ts_ms, kind=kind, surface=surface.name, context_id=ctx, **fields)
         )
 
-    def _emit(self, payload: SignalPayload | None) -> None:
-        """Add topics from the field's text, convert to the wire format and send."""
+    def _emit(self, payload: SignalPayload | None) -> SignalPayload | None:
+        """Add topics from the field's text and send. Returns the payload as sent."""
         if payload is None:
-            return
+            return None
         surface_id = self._surface_ids.get(payload.context_id)
         window = self._buffer.window(surface_id) if surface_id else ""
         payload = replace(payload, topics=tuple(extract_topics(window)))
-        self._sender.send(self._converter.convert(payload))
+        self._transport.send(payload)
         self.payloads += 1
+        return payload
+
+    def _ask_experts(self, topics: list[str]) -> None:
+        """Print who knows these topics. Runs on its own thread so typing never waits on it."""
+
+        def ask() -> None:
+            experts = self._transport.request_experts(topics)
+            names = ", ".join(f"{e['user_id']} on {e['topic']} ({e['score']:.2f})" for e in experts)
+            print(f"<- who knows {topics}: {names or 'nobody yet (knowledge gap)'}", flush=True)
+
+        if topics:
+            threading.Thread(target=ask, daemon=True).start()

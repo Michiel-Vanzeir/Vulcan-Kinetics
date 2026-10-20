@@ -1,4 +1,54 @@
-"""Capture agent settings. Surfaces are opt-in: anything not listed is never captured."""
+"""Capture agent settings. Surfaces are opt-in: anything not listed is never captured.
+
+Runtime settings come from environment variables, or from capture-agent/.env (the environment
+wins). Every variable the agent reads:
+
+    WHOKNOWS_BACKEND_URL  Backend base URL, e.g. http://localhost:5000. The agent POSTs to
+                          <url>/analyze and <url>/experts. Unset: demo mode, nothing is sent.
+    WHOKNOWS_USER_ID      User id sent with every payload. Default: emp_014 (a demo employee).
+    WHOKNOWS_AUTH_TOKEN   Optional bearer token sent to the backend. Default: none.
+"""
+
+import os
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+DEFAULT_USER_ID = "emp_014"
+
+
+@dataclass(frozen=True)
+class AgentConfig:
+    """Settings constant for one agent run."""
+
+    backend_url: str | None
+    user_id: str
+    auth_token: str | None = None
+
+
+def _read_env_file(path: Path) -> dict[str, str]:
+    """KEY=VALUE lines; blank lines and # comments are skipped."""
+    values: dict[str, str] = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, value = line.split("=", 1)
+                values[key.strip()] = value.strip().strip("\"'")
+    return values
+
+
+def load_config(env: Mapping[str, str] = os.environ, env_file: Path = ENV_FILE) -> AgentConfig:
+    """Agent settings from the environment, falling back to the .env file."""
+    values = {**_read_env_file(env_file), **env}
+    url = values.get("WHOKNOWS_BACKEND_URL") or None
+    return AgentConfig(
+        backend_url=url.rstrip("/") if url else None,
+        user_id=values.get("WHOKNOWS_USER_ID") or DEFAULT_USER_ID,
+        auth_token=values.get("WHOKNOWS_AUTH_TOKEN") or None,
+    )
+
 
 # About 4 KB of recent keystrokes, as in the spec.
 BUFFER_CAPACITY = 4096

@@ -31,3 +31,6 @@ Thumbs.db
 
 # uiautomation library log
 @AutomationLog.txt
+
+# Expertise filter SQLite store (local demo data)
+Neo4J-backend/whoknows.db

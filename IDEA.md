@@ -109,11 +109,11 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | 2 | Capture agent: ring buffer + accessibility-API surface ids, password and sensitive fields skipped, numbers/emails stripped | done | Michiel |
 | 3 | Capture agent: signal detector (raw signal counts per trigger, per text field; see "Signal detector output") | done | Michiel |
 | 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | done | Michiel |
-| 5 | Capture agent: end-to-end pipeline (hook -> detector -> extractor -> backend format) and single, auditable send path (`agent/sender.py`) | done | Michiel |
+| 5 | Capture agent: end-to-end pipeline (hook -> detector -> extractor -> backend format) and single, auditable send path (`agent/transport.py`) | done | Michiel |
 | 6 | Capture agent surfaces: desktop apps (Teams, Outlook, Word, PowerPoint, OneNote, Slack, Notion) and work web apps in any browser (Gmail, Outlook, Teams, Google Docs, Slack, Notion, Confluence, Jira, SharePoint, Zendesk, Salesforce, ServiceNow) | in progress (Michiel) | Michiel |
 | 7 | Manual hotkey trigger (Ctrl+Alt+W) | done | Michiel |
 | 8 | Fixed vocabulary of payroll topic ids (35 topics + countries, PC numbers, worker classes for the demo) | done | Michiel |
-| 9 | Backend `/analyze`: signal payload in, stored as event | planned | |
+| 9 | Backend `/analyze`: signal payload in, validated, handed to the expertise filter; `/experts`: topic tokens in, ranked experts out (`Neo4J-backend/app/signals.py`) | done | Michiel |
 | 9b | Backend scoring module: TYPING / HESITATING / STRUGGLING state per text field, from signal payloads | planned | _teammate TBD_ |
 | 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | in progress (Sven) | Sven |
 | 11 | Expertise scoring: fluency, artifact weight, peer vouches, recency decay, knowledge-gap threshold | planned | |
@@ -206,7 +206,7 @@ Consumes signal payloads and labels each compose context. Hesitation lasts longe
 
 This list is the detector's output (`SignalPayload`). Counters cover the period since the previous payload of the same context.
 
-**On the wire** the agent sends the backend's format instead: `agent/backend_payload.py` turns each `SignalPayload` into the schema of `Neo4J-backend/expertise_filter.py` (counts **cumulative** since the context opened, `hedge_word` renamed `hedge`, topics accumulated per context), and `agent/sender.py` checks it before sending. That schema is the contract with the backend; the fields map one-to-one onto the groups below.
+**On the wire** the agent sends the backend's format instead: `agent/backend_payload.py` turns each `SignalPayload` into the schema of `Neo4J-backend/expertise_filter.py` (counts **cumulative** since the context opened, `hedge_word` renamed `hedge`, topics accumulated per context), and `agent/transport.py` checks it before sending. That schema is the contract with the backend; the fields map one-to-one onto the groups below.
 
 **Housekeeping**
 - `schema_version`: payload format version
@@ -285,7 +285,7 @@ Example (about 600 bytes as JSON, nulls included):
 }
 ```
 
-The code path from keystrokes to network is **one function, auditable in a single file**: `build_payload()` in `capture-agent/signal_detector/detector.py` is the only producer of signal payloads, and `Sender.send()` in `capture-agent/agent/sender.py` is the only way out, after a wire-format check (known keys only, no free-text strings, topics only from the vocabulary). Local-first processing is an architectural guarantee, not a promise.
+The code path from keystrokes to network is **one function, auditable in a single file**: `build_payload()` in `capture-agent/signal_detector/detector.py` is the only producer of signal payloads, and `Transport._post()` in `capture-agent/agent/transport.py` is the only way out, after a wire-format check (known keys only, no free-text strings, topics only from the vocabulary). Local-first processing is an architectural guarantee, not a promise.
 
 ### Expertise graph (backend)
 
@@ -348,7 +348,7 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 ## Open decisions
 
 - Agent OS: the spec prefers macOS; the agent is currently built for Windows (`capture-agent/surface_windows.py` is the only OS-specific file). Decide which machine runs the demo.
-- Backend endpoint: the agent POSTs to `--backend-url` / `WHOKNOWS_BACKEND_URL`, but the backend has no HTTP route for `expertise_filter.process()` yet. Without a URL the agent runs in demo mode and only prints payloads.
+- Demo data: the expertise filter starts empty, so `/experts` returns nobody until people have sent payloads that score as answering with confidence. The synthetic dataset (feature 1) has to seed it, or `/experts` should also consult Sven's Neo4j graph.
 - Reply detection: `is_reply`, `prior_message_char_count` and `question_marks_in_prior_message` are always false/0, because the agent doesn't read the message being replied to.
 - Scoring formula: the product zeroes a score when any factor is 0 (e.g. no vouches yet). Each factor likely needs a floor (e.g. `1 + vouches`). Also decide where "direction of the conversation" enters the formula; it's listed as a signal but isn't a factor yet.
 
@@ -425,3 +425,4 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Michiel): Hedge list grown from about 30 to about 300 phrases and German added (SD Worx operates in DE). Matching is now spelling-tolerant (accents, apostrophes) and checked against neutral business sentences for false hits. Sensitive-field and private-window detection extended to NL/FR/DE labels and browser UIs; more work web apps recognised.
 - 2026-10-20 (Michiel): Topic extractor built (`capture-agent/topic_extractor/`): keyword, stem and pattern matching against a fixed EN/NL/FR vocabulary of 35 payroll topics plus countries, PC numbers and worker classes. No ML model, so the output is provably a subset of the vocabulary. Not yet wired into the signal detector.
 - 2026-10-20 (Michiel): Capture agent wired end to end: keyboard hook -> signal detector -> topic extractor -> backend wire format -> single sender, runnable with `python -m agent`. Adopted the backend's payload schema (expertise_filter.py, cumulative counts) as the wire format; added `placeholder` and `submit` to its accepted triggers, and long pauses and rewrite loops to the detector. Removed vocabulary patterns that fired on everyday sentences (notice, employee, manager, worker, index, ...). Enter sends in chat apps, Ctrl+Enter anywhere, Ctrl+Alt+W asks now.
+- 2026-10-20 (Michiel): Agent and backend connected over HTTP. Agent: `agent/transport.py` (fire-and-forget POST /analyze with one retry, blocking POST /experts, optional bearer token, settings from env or `.env`). Backend: `/analyze` and `/experts` in `Neo4J-backend/app/signals.py` on the existing Flask app, Pydantic-validated (no free-text strings), feeding Daan's expertise filter. Ctrl+Alt+W now also prints who knows the field's topics.

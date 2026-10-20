@@ -10,7 +10,7 @@ import pytest
 from agent.backend_payload import BackendPayloads
 from agent.buffer import RingBuffer
 from agent.pipeline import Action, Pipeline, context_id
-from agent.sender import check
+from agent.transport import check
 from agent.surfaces import Surface
 from conftest import FakeClock
 from signal_detector import DetectorConfig, SignalDetector
@@ -21,15 +21,20 @@ PASSWORD = Surface(id="gmail_web:9.9", name="gmail_web", is_sensitive=True)
 FILTER_PATH = Path(__file__).resolve().parents[2] / "Neo4J-backend" / "expertise_filter.py"
 
 
-class RecordingSender:
-    """Stands in for agent.sender.Sender; enforces the same wire-format check."""
+class RecordingTransport:
+    """Stands in for agent.transport.Transport: same conversion and check, no network."""
 
     def __init__(self) -> None:
+        self.converter = BackendPayloads()
         self.payloads: list[dict] = []
 
-    def send(self, payload: dict) -> None:
-        assert check(payload), payload
-        self.payloads.append(payload)
+    def send(self, payload) -> None:
+        body = self.converter.convert(payload)
+        assert check(body), body
+        self.payloads.append(body)
+
+    def request_experts(self, topics: list[str]) -> list[dict]:
+        return []
 
 
 class Keyboard:
@@ -59,15 +64,15 @@ class Keyboard:
 
 
 @pytest.fixture
-def sender() -> RecordingSender:
-    return RecordingSender()
+def sender() -> RecordingTransport:
+    return RecordingTransport()
 
 
 @pytest.fixture
-def keyboard(sender: RecordingSender) -> Keyboard:
+def keyboard(sender: RecordingTransport) -> Keyboard:
     clock = FakeClock()
     detector = SignalDetector(DetectorConfig(user_id="emp_014", clock=clock))
-    return Keyboard(Pipeline(RingBuffer(), detector, BackendPayloads(), sender), clock)
+    return Keyboard(Pipeline(RingBuffer(), detector, sender), clock)
 
 
 def test_hedge_in_teams_sends_payload_with_topics(keyboard, sender):
