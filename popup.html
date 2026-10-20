@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>whoknows</title>
+    <link rel="stylesheet" href="popup.css" />
+    <script src="popup.js" defer></script>
+  </head>
+  <body>
+    <div class="popup">
+      <header>
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+          <path d="M4 6v20" fill="none" stroke="#006dd8" stroke-width="2" />
+          <g fill="#006dd8"><circle cx="12" cy="22" r="2" />
+            <circle cx="19" cy="22" r="2" /><circle cx="27" cy="15" r="3" />
+            <path d="M22 25a5 5 0 0 1 10 0z" /></g>
+        </svg>
+        <div>
+          <div class="wordmark">whoknows</div>
+          <div class="tagline">Expertise finds you, not the other way around.</div>
+        </div>
+      </header>
+      <main>
+        <label class="row">
+          <span>
+            <b>Detect hesitation</b>
+            <small>Flags pauses, rewrites and hedging</small>
+          </span>
+          <input id="auto-detect" type="checkbox" checked />
+        </label>
+        <div class="status" role="status" aria-live="polite">
+          <span class="led" aria-hidden="true"></span>
+          <span id="connection-status">Checking backend…</span>
+        </div>
+        <small id="storage-error" role="alert" hidden></small>
+      </main>
+    </div>
+  </body>
+</html>

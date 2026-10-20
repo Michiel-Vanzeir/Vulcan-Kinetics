@@ -1,0 +1,22 @@
+* { box-sizing: border-box; }
+body { margin: 0; }
+.popup { width: 300px; color: #26313e; background: white;
+  font: 14px/1.5 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; border: 1px solid #dfe4eb; border-radius: 6px; }
+header { display: flex; gap: 10px; align-items: center; padding: 20px 16px 17px;
+  background: white; color: #006dd8; border-bottom: 1px solid #edf0f3; }
+.logo { width: 30px; height: 30px; display: block; flex: none; }
+.wordmark { font-weight: 800; font-size: 21px; letter-spacing: -.055em; line-height: 1; }
+.tagline { font-size: 10px; margin-top: 7px; color: #657181; }
+main { padding: 6px 16px 17px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 0; border-bottom: 1px solid #edf0f3; }
+.row b { font-size: 15px; letter-spacing: -.02em; }
+.row small { display: block; margin-top: 3px; font-size: 11px; }
+.row input { width: 18px; height: 18px; accent-color: #006dd8; flex: none; cursor: pointer; }
+.row input:focus-visible { outline: 2px solid #006dd8; outline-offset: 3px; }
+.status { display: flex; align-items: center; gap: 8px; padding-top: 14px; font-size: 11px; }
+.led { width: 8px; height: 8px; flex-shrink: 0; border: 1px solid #006dd8; }
+.led.on { background: #006dd8; }
+.led.off { border-color: #f1002f; transform: rotate(45deg); }
+#storage-error { display: block; margin-top: 10px; font-size: 11px; }
+[hidden] { display: none !important; }

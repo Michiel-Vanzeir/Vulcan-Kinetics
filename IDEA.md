@@ -127,6 +127,8 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | 9 | Vouch on helpful answer (feeds back into ranking) | planned | |
 | 10 | Mock demo pages: mail, chat, contenteditable document | planned | |
 | 11 | Per-topic opt-out UI for employees | planned | |
+| 12 | Local webpage reproducing the reference settings popup and searchable people panel, with synthetic cards, simulated conversations, saved toggle and connection-state testing | done | Thoma |
+| 13 | Local preview account availability: saved ping opt-out, 50-minute DND, profile availability and simulated ping actions | done | Thoma |
 
 ---
 
@@ -236,6 +238,14 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 - **Name:** whoknows (lowercase). "Who knows?" is the thought at the moment of doubt.
 - **Logo:** a text cursor and two white dots (typing, hesitating). The third dot becomes a yellow person (the colleague who knows).
 - **Colours:** navy `#1B2A4E`, highlighter yellow `#FFD23F`, white `#FFFFFF`, muted blue-grey `#A0ACC8`.
+- **Local popup previews:** SD Worx blue `#006DD8` and white, dark neutral text,
+  with a restrained red `#F1002F` accent for stale expertise. Sans-serif text, compact corners,
+  flat layouts and text labels instead of emoji icons. An information icon beside each name
+  switches that card to an inline evidence view with a return action, without opening a popover.
+  Profiles use light blue cards. Chats occupy the panel with back navigation that preserves
+  the people search, draft messages and conversations during the preview session.
+  A profile icon opens a separate account view. Ping opt-out and timed pauses share the
+  same unavailable status on profile cards.
 - **Typeface:** Bricolage Grotesque, extra bold for the wordmark.
 - **Writing style:** plain, direct, no overclaiming, no em dashes.
 
@@ -252,3 +262,9 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Michiel): Created repo conventions (`AGENTS.md`, `CLAUDE.md`, `IDEA.md`).
 - 2026-10-20 (Michiel): Added previous-round code in `previous-round/` as read-only reference. Starting fresh, not building on it.
 - 2026-10-20 (Michiel): Finals idea set: whoknows, carried over from the previous round and extended for the SD Worx extra challenge (zero-maintenance trust: expertise from work signals, vouches, automatic decay). Added document writing as a trigger next to replies.
+- 2026-10-20 09:55 (Thoma): Added a standalone popup preview for local UI testing without loading the previous-round extension.
+- 2026-10-20 10:00 (Thoma): Extended the local preview with the reference people panel, searchable synthetic experts and simulated ask/reply/vouch interactions.
+- 2026-10-20 10:14 (Thoma): Adopted blue and white for the local popup previews, with a flatter layout and clearer typography while retaining the existing interactions.
+- 2026-10-20 10:21 (Thoma): Simplified the preview with neutral text, restrained SD Worx colour accents and expandable evidence to reduce visual clutter without removing functionality.
+- 2026-10-20 10:28 (Thoma): Separated profiles with light blue cards and moved conversations into a dedicated panel view with back navigation to keep the people list easy to scan.
+- 2026-10-20 11:34 (Thoma): Added local demo ping preferences, timed Do Not Disturb and recipient availability so the preview can demonstrate contact boundaries without real notifications.
