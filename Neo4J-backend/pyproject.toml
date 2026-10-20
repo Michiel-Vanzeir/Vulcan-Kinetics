@@ -1,0 +1,19 @@
+[project]
+name = "neo4j-backend"
+version = "0.1.0"
+description = "Who-knows enterprise knowledge graph (Neo4j + Flask)"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "flask>=3.0",
+    "neo4j>=5.18",
+    "pydantic>=2.6",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+# Real semantic embeddings (pulls in torch, large download)
+ml = ["sentence-transformers>=2.7"]
+
+[tool.uv]
+package = false

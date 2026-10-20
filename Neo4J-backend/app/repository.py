@@ -33,6 +33,17 @@ def link(tx, child_id: str, parent_ids: list[str]) -> None:
     )
 
 
+def link_clients(tx, node_id: str, client_ids: list[str]) -> None:
+    tx.run(
+        """
+        MATCH (n:OrgNode {id: $nid})
+        MATCH (c:Client) WHERE c.id IN $cids
+        MERGE (n)-[:SERVES]->(c)
+        """,
+        nid=node_id, cids=client_ids,
+    )
+
+
 def get_node(tx, node_id: str):
     rec = tx.run(f"MATCH (n:OrgNode {{id: $id}}) RETURN {_node_map('n')} AS node", id=node_id).single()
     return rec["node"] if rec else None
@@ -83,7 +94,24 @@ def get_knowledge_status(tx, knowledge_id: str):
     return None if rec is None else {"superseded": rec["superseded"]}
 
 
-def create_knowledge(tx, props: dict, occurred_at: str, holder_ids: list[str], supersedes_id) -> None:
+def get_knowledge(tx, knowledge_id: str):
+    """Everything needed to build a revision; None if missing."""
+    rec = tx.run(
+        """
+        MATCH (k:Knowledge {id: $id})
+        RETURN k{.title, .summary, .keywords, .importance, .source_type, .source_uri,
+                 occurred_at: toString(k.occurred_at),
+                 holder_ids: [(h:OrgNode)-[:HAS_KNOWLEDGE]->(k) | h.id],
+                 client_ids: [(k)-[:ABOUT]->(c:Client) | c.id],
+                 superseded: EXISTS { (k)<-[:SUPERSEDES]-() }} AS k
+        """,
+        id=knowledge_id,
+    ).single()
+    return rec["k"] if rec else None
+
+
+def create_knowledge(tx, props: dict, occurred_at: str, holder_ids: list[str], client_ids: list[str],
+                     supersedes_id) -> None:
     tx.run(
         """
         CREATE (k:Knowledge) SET k = $props
@@ -95,6 +123,15 @@ def create_knowledge(tx, props: dict, occurred_at: str, holder_ids: list[str], s
         """,
         props=props, occurred_at=occurred_at, holder_ids=holder_ids,
     )
+    if client_ids:
+        tx.run(
+            """
+            MATCH (k:Knowledge {id: $kid})
+            MATCH (c:Client) WHERE c.id IN $cids
+            MERGE (k)-[:ABOUT]->(c)
+            """,
+            kid=props["id"], cids=client_ids,
+        )
     if supersedes_id:
         tx.run(
             """
@@ -105,6 +142,18 @@ def create_knowledge(tx, props: dict, occurred_at: str, holder_ids: list[str], s
         )
 
 
+_KNOWLEDGE_ROWS = """
+        WITH k, collect(DISTINCT {id: h.id, name: h.name}) AS holders
+        ORDER BY k.importance DESC, k.occurred_at DESC
+        RETURN k{.id, .title, .summary, .keywords, .importance, .source_type, .source_uri,
+                 occurred_at: toString(k.occurred_at)} AS knowledge,
+               holders,
+               [(k)-[:ABOUT]->(c:Client) | {id: c.id, name: c.name}] AS clients,
+               EXISTS { (k)<-[:SUPERSEDES]-() } AS superseded,
+               [(k)-[:SUPERSEDES]->(o) | o.id] AS supersedes
+"""
+
+
 def knowledge_for_node(tx, node_id: str, recursive: bool, include_superseded: bool) -> list[dict]:
     hops = "*0.." if recursive else "*0..0"
     result = tx.run(
@@ -112,15 +161,21 @@ def knowledge_for_node(tx, node_id: str, recursive: bool, include_superseded: bo
         MATCH (h:OrgNode)-[:PART_OF{hops}]->(:OrgNode {{id: $id}})
         MATCH (h)-[:HAS_KNOWLEDGE]->(k:Knowledge)
         WHERE $include_superseded OR NOT EXISTS {{ (k)<-[:SUPERSEDES]-() }}
-        WITH k, collect(DISTINCT {{id: h.id, name: h.name}}) AS holders
-        ORDER BY k.importance DESC, k.occurred_at DESC
-        RETURN k{{.id, .title, .summary, .keywords, .importance, .source_type, .source_uri,
-                 occurred_at: toString(k.occurred_at)}} AS knowledge,
-               holders,
-               EXISTS {{ (k)<-[:SUPERSEDES]-() }} AS superseded,
-               [(k)-[:SUPERSEDES]->(o) | o.id] AS supersedes
-        """,
+        """ + _KNOWLEDGE_ROWS,
         id=node_id, include_superseded=include_superseded,
+    )
+    return [r.data() for r in result]
+
+
+def knowledge_about_client(tx, client_id: str, include_superseded: bool) -> list[dict]:
+    """Clients hold nothing; their knowledge is whatever is linked ABOUT them."""
+    result = tx.run(
+        """
+        MATCH (k:Knowledge)-[:ABOUT]->(:Client {id: $id})
+        WHERE $include_superseded OR NOT EXISTS { (k)<-[:SUPERSEDES]-() }
+        MATCH (h:OrgNode)-[:HAS_KNOWLEDGE]->(k)
+        """ + _KNOWLEDGE_ROWS,
+        id=client_id, include_superseded=include_superseded,
     )
     return [r.data() for r in result]
 
