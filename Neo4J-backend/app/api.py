@@ -1,3 +1,4 @@
+"""HTTP routes for the whoknows backend: thin shells over `services`."""
 import json
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError

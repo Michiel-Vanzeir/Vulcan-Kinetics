@@ -1,3 +1,4 @@
+"""Neo4j driver singleton. Open short sessions off `get_driver()`."""
 import atexit
 from neo4j import GraphDatabase
 from . import config

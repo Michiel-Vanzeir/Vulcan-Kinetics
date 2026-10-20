@@ -1,23 +1,16 @@
-"""Tests for expertise_filter.
-
-Run with: pytest Neo4J-backend/test_expertise_filter.py
-"""
+"""Tests for expertise_filter. Run with: pytest Neo4J-backend/test_expertise_filter.py"""
 from __future__ import annotations
 
-import copy
 import time
 
 import pytest
 
 from expertise_filter import (
-    CONFIG,
     ExpertiseFilter,
     PersonStore,
     SignalPayload,
     build_filter,
-    confidence_score,
     direction,
-    doubt_score,
 )
 
 
@@ -243,14 +236,11 @@ def test_invalid_trigger_raises():
 def _senior_filter():
     directory = {"emp_014": {"job_title": "Payroll consultant",
                              "seniority": "senior", "department": "Payroll BE"}}
-    from expertise_filter import ExpertiseFilter, PersonStore
     return ExpertiseFilter(PersonStore(":memory:"), directory)
 
 
 def _warm_up_expertise(f, user="emp_014", topic="bonus_pc200", times=2):
-    """Send a few confident answering payloads so expertise clears the
-    is_expert threshold; the live payload under test can then be a single
-    one and we check only its emitted edges."""
+    """Push expertise above the is_expert threshold so a single live payload tests emission."""
     now_ms = int(time.time() * 1000)
     for i in range(times):
         f.process(_payload(
@@ -413,9 +403,7 @@ def test_doubt_alert_respects_cooldown_per_context():
 
 def test_doubt_push_callback_is_invoked():
     received = []
-    from expertise_filter import ExpertiseFilter, PersonStore
-    f = ExpertiseFilter(PersonStore(":memory:"),
-                        on_doubt_push=received.append)
+    f = ExpertiseFilter(PersonStore(":memory:"), on_doubt_push=received.append)
     f.process(_hesitant_payload(topics=["bonus_pc200"]))
     assert len(received) == 1
     assert received[0]["user_id"] == "emp_112"
