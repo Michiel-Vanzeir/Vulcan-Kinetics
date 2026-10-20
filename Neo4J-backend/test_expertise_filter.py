@@ -235,3 +235,120 @@ def test_invalid_trigger_raises():
     bad["trigger"] = "typing"
     with pytest.raises(ValueError):
         SignalPayload.from_dict(bad)
+
+
+# ---------------------------------------------------------------------------
+# Interaction emission (participants supplied -> network edges)
+# ---------------------------------------------------------------------------
+def _senior_filter():
+    directory = {"emp_014": {"job_title": "Payroll consultant",
+                             "seniority": "senior", "department": "Payroll BE"}}
+    from expertise_filter import ExpertiseFilter, PersonStore
+    return ExpertiseFilter(PersonStore(":memory:"), directory)
+
+
+def _warm_up_expertise(f, user="emp_014", topic="bonus_pc200", times=2):
+    """Send a few confident answering payloads so expertise clears the
+    is_expert threshold; the live payload under test can then be a single
+    one and we check only its emitted edges."""
+    now_ms = int(time.time() * 1000)
+    for i in range(times):
+        f.process(_payload(
+            user_id=user,
+            context_id=f"warmup-{i}",
+            ts=now_ms + i * 1000,
+            trigger="punctuation",
+            topics=[topic],
+            is_reply=True,
+            prior_message_char_count=120,
+            current_message_char_count=600,
+            chars_typed=600, chars_deleted=10,
+            fluency_run_seconds=25.0, longest_fluency_run_seconds=40.0,
+        ))
+
+
+def test_answering_with_participants_emits_compose_answer_edges():
+    f = _senior_filter()
+    _warm_up_expertise(f)
+    live_ts = int(time.time() * 1000) + 10_000
+    out = f.process(_payload(
+        context_id="live-ctx",
+        ts=live_ts,
+        topics=["bonus_pc200"],
+        is_reply=True,
+        prior_message_char_count=120,
+        current_message_char_count=600,
+        chars_typed=600, chars_deleted=10,
+        fluency_run_seconds=25.0, longest_fluency_run_seconds=40.0,
+    ), participants=["emp_112"])
+    assert out is not None
+    assert out["tip"] is not None
+    assert out["tip"]["recipient"] == "emp_112"
+    edges = out["interactions"]
+    assert len(edges) == 1
+    edge = edges[0]
+    assert edge["giver"] == "emp_014"
+    assert edge["receiver"] == "emp_112"
+    assert edge["kind"] == "compose_answer"
+    assert edge["topics"] == ["bonus_pc200"]
+    assert edge["weight"] > 0
+
+
+def test_asking_with_participants_emits_asked_about_edges():
+    f = build_filter()
+    out = f.process(_payload(
+        user_id="emp_112",
+        context_id="ctx-ask",
+        trigger="hedge",
+        topics=["bonus_pc200"],
+        is_reply=False,
+        current_message_char_count=120,
+        chars_typed=160, chars_deleted=40,
+        hedge_words=4, placeholders=2, question_marks_written=3,
+        long_pauses=5, window_switches_away=4,
+    ), participants=["emp_014", "emp_021"])
+    assert out is not None
+    assert out["tip"] is None  # asker is not an expert
+    edges = out["interactions"]
+    assert len(edges) == 2
+    kinds = {e["kind"] for e in edges}
+    assert kinds == {"asked_about"}
+    assert {e["giver"] for e in edges} == {"emp_014", "emp_021"}
+    for e in edges:
+        assert e["receiver"] == "emp_112"
+
+
+def test_no_participants_means_no_interactions_but_tip_still_fires():
+    f = _senior_filter()
+    _warm_up_expertise(f)
+    live_ts = int(time.time() * 1000) + 10_000
+    out = f.process(_payload(
+        context_id="live-ctx",
+        ts=live_ts,
+        topics=["bonus_pc200"],
+        is_reply=True,
+        prior_message_char_count=120,
+        current_message_char_count=600,
+        chars_typed=600, chars_deleted=10,
+        fluency_run_seconds=25.0, longest_fluency_run_seconds=40.0,
+    ))
+    assert out is not None
+    assert out["interactions"] == []
+    assert out["tip"] is not None
+    assert out["tip"]["recipient"] is None
+
+
+def test_pasted_answering_does_not_emit_compose_answer_edge():
+    f = build_filter()
+    out = f.process(_payload(
+        topics=["bonus_pc200"],
+        is_reply=True,
+        prior_message_char_count=50,
+        current_message_char_count=500,
+        chars_typed=200, chars_deleted=4,
+        fluency_run_seconds=30.0, longest_fluency_run_seconds=30.0,
+        pasted_char_count=450,
+    ), participants=["emp_112"])
+    # Either no routable output at all, or an output with no answering edge.
+    edges = (out or {}).get("interactions", [])
+    assert all(e["kind"] != "compose_answer" for e in edges)

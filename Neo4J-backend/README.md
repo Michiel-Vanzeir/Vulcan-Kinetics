@@ -158,19 +158,28 @@ Three scores are computed per snapshot (always the latest payload for that
 - `is_expert(user_id, topic)` combines profile relevance (seniority + title
   hints), recency-decayed expertise evidence, and surface breadth. Two vetoes:
   more doubt than expertise, or more pasted than authored content.
-- `process(payload_dict)` returns `{"author", "recipient", "topic", "score",
-  "reasons"}` for the top qualifying topic, or `None`. Topics may be empty —
-  the payload is then buffered under `pending_contexts[context_id]` and
-  resolved on a later payload for the same context that carries topics.
+- `process(payload_dict, participants=None)` returns `None` when nothing is
+  routable, or `{"tip": tip_or_none, "interactions": [...]}`. The `tip` is the
+  routing dict for the side panel (`author`, `recipient`, `topic`, `score`,
+  `reasons`). The `interactions` list is empty when `participants` is `None`;
+  with participants, it carries edges in the shape `app/network.py` already
+  consumes — `compose_answer` from author to each counterpart on an answering
+  context, `asked_about` from each counterpart to the author on an asking
+  context. The network graph gets better passively from these edges without
+  anyone filling in a profile.
+- Topics may be empty — the payload is then buffered under
+  `pending_contexts[context_id]` and resolved on a later payload for the same
+  context that carries topics.
 
 All weights, thresholds, half-life, and veto ratios live in the top-level
 `CONFIG` dict at the top of the file.
 
 ### Assumptions
 
-- `recipient` is always `None`. The payload identifies only one `user_id`;
-  wiring the counterpart (thread participants / reply recipient) is left as a
-  `TODO` on the orchestrator and would come from a separate participant map.
+- `recipient` is `None` unless the caller passes a `participants` list to
+  `process()`. The payload itself identifies only one `user_id` (the author);
+  the thread adapter (Outlook `to:`, Teams reply parent, meeting diarisation)
+  is the one that resolves the counterparts and should pass them in.
 - `baseline_avg_pause_ms` and `baseline_avg_deletion_rate` are sent once per
   session; the aggregator caches whichever baseline it has most recently seen
   for each `user_id` and never clears it from a later empty payload.

@@ -48,6 +48,12 @@ CONFIG: dict[str, float] = {
     "paste_discount_at_ratio": 0.5,            # ratio where confidence halves
     "paste_hard_cap_ratio": 0.6,               # above this: evidence is pasted
 
+    # Interaction edge weights emitted for the people-network graph. These line
+    # up with app/network.py's EVENT_WEIGHT so the graph gets strong signal from
+    # the compose context but less than a resolved ticket.
+    "edge_compose_answer_weight": 0.7,         # answerer -> asker, scaled by conf
+    "edge_asked_about_weight": 0.3,            # asker -> each participant
+
     # Doubt (person is stuck on the topic -> a candidate to be helped).
     "doubt_hedge_weight": 0.08,                # per hedge
     "doubt_placeholder_weight": 0.15,
@@ -455,7 +461,19 @@ class ExpertiseFilter:
         self._agg = ContextAggregator()
 
     # ---- public API --------------------------------------------------------
-    def process(self, payload_dict: dict[str, Any]) -> dict[str, Any] | None:
+    def process(self, payload_dict: dict[str, Any],
+                participants: list[str] | None = None) -> dict[str, Any] | None:
+        """Consume one capture-agent payload.
+
+        `participants` is the counterpart user_ids in the current thread or
+        channel (e.g. the Outlook thread's other recipients). When supplied,
+        the result also carries interaction events for the people-network
+        graph. When None, only the routing tip is produced.
+
+        Returns None when nothing is routable yet (topics not in, no qualifying
+        expert, no participants to attribute edges to). Otherwise returns
+        {"tip": tip_or_none, "interactions": [...]}.
+        """
         payload = SignalPayload.from_dict(payload_dict)
         snap = self._agg.ingest(payload)
         baseline = self._agg.baseline_for(payload.user_id)
@@ -488,15 +506,75 @@ class ExpertiseFilter:
             if is_exp and (best is None or score > best["score"]):
                 best = {
                     "author": snap.user_id,
-                    # TODO: payload carries only one user_id (the author). A
-                    # separate participant/thread mapping is needed to resolve
-                    # the counterpart; keep recipient=None until that is wired.
-                    "recipient": None,
+                    "recipient": self._primary_counterpart(participants, snap.user_id),
                     "topic": topic,
                     "score": score,
                     "reasons": reasons,
                 }
-        return best
+
+        interactions = self._build_interactions(snap, scores, participants)
+        if best is None and not interactions:
+            return None
+        return {"tip": best, "interactions": interactions}
+
+    def _primary_counterpart(self, participants: list[str] | None,
+                             author: str) -> str | None:
+        """Pick a single recipient id for the UI card. For a 1:1 thread this is
+        the only other participant; for a group we just take the first one and
+        emit edges toward all of them (see `_build_interactions`)."""
+        if not participants:
+            return None
+        others = [p for p in participants if p != author]
+        return others[0] if others else None
+
+    def _build_interactions(self, snap: SignalPayload, scores: dict[str, Any],
+                            participants: list[str] | None) -> list[dict[str, Any]]:
+        """Shape interactions so a people-network consumer (see app/network.py)
+        can turn them straight into weighted edges. One edge per counterpart,
+        per topic. Nothing is emitted when `participants` is missing - we won't
+        invent edges toward an unknown recipient.
+        """
+        if not participants:
+            return []
+        others = [p for p in participants if p != snap.user_id]
+        if not others:
+            return []
+
+        cfg = CONFIG
+        events: list[dict[str, Any]] = []
+        base = {
+            "source": "compose",
+            "source_id": f"{snap.context_id}:{snap.ts}",
+            "ts": snap.ts,
+            "surface": snap.surface,
+            "topics": list(snap.topics),
+        }
+
+        if (scores["direction"] == "answering"
+                and scores["confidence"] >= cfg["high_confidence_threshold"]
+                and scores["paste_ratio"] < cfg["paste_hard_cap_ratio"]):
+            weight = cfg["edge_compose_answer_weight"] * scores["confidence"]
+            for recipient in others:
+                events.append({
+                    **base,
+                    "giver": snap.user_id,
+                    "receiver": recipient,
+                    "kind": "compose_answer",
+                    "weight": round(weight, 3),
+                })
+
+        if scores["direction"] == "asking":
+            weight = cfg["edge_asked_about_weight"]
+            for other in others:
+                events.append({
+                    **base,
+                    "giver": other,       # others are presumed to know
+                    "receiver": snap.user_id,
+                    "kind": "asked_about",
+                    "weight": weight,
+                })
+
+        return events
 
     def is_expert(self, user_id: str, topic: str) -> tuple[bool, float, list[str]]:
         """Decide whether `user_id` should be routed as an expert on `topic`.
