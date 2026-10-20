@@ -1,5 +1,12 @@
 * { box-sizing: border-box; scrollbar-color: #006dd8 #edf5fe; scrollbar-width: thin; }
 button, input, textarea, select { font-family: inherit; }
+#hidden-topics, #hidden-committees {
+  display: block; width: 100%; margin: 6px 0 12px;
+  border: 1px solid #97c4f0; border-radius: 4px; background: white;
+  color: #26313e; padding: 8px; font-size: 14px;
+}
+#hidden-topics { min-height: 112px; }
+#hidden-topics:focus, #hidden-committees:focus { outline: 2px solid #006dd8; outline-offset: 2px; }
 :root {
   font: 16px/1.5 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   color: #26313e; background: #f5f6f8;

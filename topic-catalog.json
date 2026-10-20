@@ -1,0 +1,749 @@
+[
+  {
+    "token": "BIK",
+    "label": "benefit in kind",
+    "aliases": [
+      "benefit in kind", "bik", "voordeel alle aard", "voordeel van alle aard", "vaa",
+      "avantage de toute nature", "avantage toute nature", "atn"
+    ]
+  },
+  {
+    "token": "notice_period",
+    "label": "notice period",
+    "aliases": [
+      "notice period",
+      "resignation notice",
+      "termination notice",
+      "opzegtermijn",
+      "opzeg",
+      "opzegging",
+      "ontslagtermijn",
+      "preavis",
+      "préavis",
+      "delai de preavis",
+      "délai de préavis"
+    ]
+  },
+  {
+    "token": "year_end_bonus",
+    "label": "year end bonus",
+    "aliases": [
+      "year-end bonus",
+      "year end bonus",
+      "13th month",
+      "thirteenth month",
+      "end of year premium",
+      "eindejaarspremie",
+      "dertiende maand",
+      "13e maand",
+      "13de maand",
+      "prime de fin d'annee",
+      "prime de fin d'année",
+      "13eme mois",
+      "13ème mois",
+      "treizieme mois",
+      "treizième mois"
+    ]
+  },
+  {
+    "token": "meal_vouchers",
+    "label": "meal vouchers",
+    "aliases": [
+      "meal voucher",
+      "meal vouchers",
+      "lunch voucher",
+      "maaltijdcheque",
+      "maaltijdcheques",
+      "lunchcheque",
+      "cheque repas",
+      "chèque-repas",
+      "cheque-repas",
+      "titres restaurant",
+      "ticket restaurant"
+    ]
+  },
+  {
+    "token": "ecocheques",
+    "label": "ecocheques",
+    "aliases": [
+      "eco voucher",
+      "eco cheque",
+      "eco vouchers",
+      "ecocheque",
+      "ecocheques",
+      "eco-cheque",
+      "eco cheque",
+      "éco-chèque",
+      "ecocheque"
+    ]
+  },
+  {
+    "token": "sick_leave",
+    "label": "sick leave",
+    "aliases": [
+      "sick leave",
+      "sick note",
+      "medical leave",
+      "disability leave",
+      "incapacity for work",
+      "ziekteverlof",
+      "arbeidsongeschikt",
+      "arbeidsongeschiktheid",
+      "ziektebriefje",
+      "ziek gemeld",
+      "conge maladie",
+      "congé maladie",
+      "incapacite de travail",
+      "incapacité de travail",
+      "arret maladie",
+      "arrêt maladie"
+    ]
+  },
+  {
+    "token": "parental_leave",
+    "label": "parental leave",
+    "aliases": [
+      "parental leave",
+      "maternity leave",
+      "paternity leave",
+      "birth leave",
+      "ouderschapsverlof",
+      "moederschapsverlof",
+      "vaderschapsverlof",
+      "geboorteverlof",
+      "conge parental",
+      "congé parental",
+      "conge de maternite",
+      "congé de maternité",
+      "conge de paternite",
+      "congé de paternité",
+      "conge de naissance",
+      "congé de naissance"
+    ]
+  },
+  {
+    "token": "holiday_pay",
+    "label": "holiday pay",
+    "aliases": [
+      "holiday pay",
+      "vacation pay",
+      "double holiday pay",
+      "vakantiegeld",
+      "dubbel vakantiegeld",
+      "enkel vakantiegeld",
+      "pecule de vacances",
+      "pécule de vacances",
+      "double pecule",
+      "double pécule"
+    ]
+  },
+  {
+    "token": "company_car",
+    "label": "company car",
+    "aliases": [
+      "company car",
+      "salary car",
+      "car policy",
+      "bedrijfswagen",
+      "firmawagen",
+      "salariswagen",
+      "autobeleid",
+      "voiture de societe",
+      "voiture de société",
+      "voiture salaire",
+      "car policy"
+    ]
+  },
+  {
+    "token": "bike_lease",
+    "label": "bike lease",
+    "aliases": [
+      "bike lease",
+      "leasing bike",
+      "cycle to work",
+      "fietslease",
+      "leasefiets",
+      "fietsvergoeding",
+      "leasing velo",
+      "leasing vélo",
+      "velo de societe",
+      "vélo de société",
+      "indemnite velo",
+      "indemnité vélo",
+      "benefit in kind",
+      "bik",
+      "voordeel alle aard",
+      "voordeel van alle aard",
+      "vaa",
+      "avantage de toute nature",
+      "avantage toute nature",
+      "atn"
+    ]
+  },
+  {
+    "token": "payslip",
+    "label": "payslip",
+    "aliases": [
+      "payslip",
+      "pay slip",
+      "salary slip",
+      "wage slip",
+      "loonbrief",
+      "loonfiche",
+      "loonstrook",
+      "loonstaat",
+      "fiche de paie",
+      "fiche de salaire",
+      "bulletin de paie",
+      "bulletin de salaire"
+    ]
+  },
+  {
+    "token": "overtime",
+    "label": "overtime",
+    "aliases": [
+      "overtime",
+      "overtime hours",
+      "extra hours",
+      "overtime pay",
+      "overuren",
+      "overwerk",
+      "meeruren",
+      "heures supplementaires",
+      "heures supplémentaires",
+      "heures sup",
+      "sursalaire"
+    ]
+  },
+  {
+    "token": "trial_period",
+    "label": "trial period",
+    "aliases": [
+      "trial period",
+      "probation period",
+      "proefperiode",
+      "proeftijd",
+      "periode d'essai",
+      "période d'essai"
+    ]
+  },
+  {
+    "token": "severance",
+    "label": "severance",
+    "aliases": [
+      "severance",
+      "severance pay",
+      "dismissal indemnity",
+      "termination pay",
+      "opzegvergoeding",
+      "verbrekingsvergoeding",
+      "ontslagvergoeding",
+      "indemnite de rupture",
+      "indemnité de rupture",
+      "indemnite de licenciement",
+      "indemnité de licenciement",
+      "prime de depart",
+      "prime de départ"
+    ]
+  },
+  {
+    "token": "onboarding",
+    "label": "onboarding",
+    "aliases": [
+      "onboarding",
+      "new hire setup",
+      "first day setup",
+      "onboarding",
+      "indiensttreding",
+      "aanwerving",
+      "onboarding",
+      "embauche"
+    ]
+  },
+  {
+    "token": "offboarding",
+    "label": "offboarding",
+    "aliases": [
+      "offboarding",
+      "exit process",
+      "departure process",
+      "offboarding",
+      "uitdiensttreding",
+      "offboarding",
+      "depart de l'employe",
+      "départ de l'employé",
+      "sortie de personnel"
+    ]
+  },
+  {
+    "token": "warrant",
+    "label": "warrant",
+    "aliases": [
+      "warrant",
+      "warrants",
+      "stock warrant",
+      "cash warrant",
+      "warrant",
+      "warrants",
+      "warrant",
+      "warrants",
+      "bon de souscription"
+    ]
+  },
+  {
+    "token": "group_insurance",
+    "label": "group insurance",
+    "aliases": [
+      "group insurance",
+      "pension plan",
+      "second pillar",
+      "occupational pension",
+      "groepsverzekering",
+      "aanvullend pensioen",
+      "tweede pijler",
+      "assurance groupe",
+      "pension complementaire",
+      "pension complémentaire",
+      "deuxieme pilier",
+      "deuxième pilier"
+    ]
+  },
+  {
+    "token": "hospitalization_insurance",
+    "label": "hospitalization insurance",
+    "aliases": [
+      "hospitalization insurance",
+      "hospital insurance",
+      "hospitalisatieverzekering",
+      "hospitalisatie",
+      "assurance hospitalisation",
+      "hospitalisation"
+    ]
+  },
+  {
+    "token": "tax_withholding",
+    "label": "tax withholding",
+    "aliases": [
+      "withholding tax",
+      "payroll tax",
+      "professional withholding",
+      "bedrijfsvoorheffing",
+      "voorheffing",
+      "precompte professionnel",
+      "précompte professionnel",
+      "precompte",
+      "précompte"
+    ]
+  },
+  {
+    "token": "social_security",
+    "label": "social security",
+    "aliases": [
+      "social security",
+      "social contributions",
+      "rsz",
+      "onss",
+      "sociale zekerheid",
+      "sociale bijdragen",
+      "rsz",
+      "securite sociale",
+      "sécurité sociale",
+      "cotisations sociales",
+      "onss"
+    ]
+  },
+  {
+    "token": "dimona",
+    "label": "dimona",
+    "aliases": [
+      "dimona",
+      "dimona declaration",
+      "dimona",
+      "dimona-aangifte",
+      "dimona",
+      "declaration dimona",
+      "déclaration dimona"
+    ]
+  },
+  {
+    "token": "flex_reward",
+    "label": "flex reward",
+    "aliases": [
+      "flex reward",
+      "cafeteria plan",
+      "flexible benefits",
+      "flex reward",
+      "cafetariaplan",
+      "flexibele verloning",
+      "flex reward",
+      "plan cafeteria",
+      "plan cafétéria",
+      "remuneration flexible",
+      "rémunération flexible"
+    ]
+  },
+  {
+    "token": "home_office",
+    "label": "home office",
+    "aliases": [
+      "home office",
+      "remote work",
+      "telework",
+      "teleworking",
+      "home working",
+      "thuiswerk",
+      "telewerk",
+      "telewerken",
+      "teletravail",
+      "télétravail",
+      "travail a domicile",
+      "travail à domicile"
+    ]
+  },
+  {
+    "token": "home_office_allowance",
+    "label": "home office allowance",
+    "aliases": [
+      "home office allowance",
+      "telework allowance",
+      "remote work allowance",
+      "thuiswerkvergoeding",
+      "telewerkvergoeding",
+      "indemnite teletravail",
+      "indemnité télétravail",
+      "forfait teletravail",
+      "forfait télétravail"
+    ]
+  },
+  {
+    "token": "commute_allowance",
+    "label": "commute allowance",
+    "aliases": [
+      "commute allowance",
+      "transport allowance",
+      "mobility budget",
+      "woon-werkverkeer",
+      "vervoersvergoeding",
+      "mobiliteitsbudget",
+      "indemnite de deplacement",
+      "indemnité de déplacement",
+      "budget mobilite",
+      "budget mobilité",
+      "frais de transport"
+    ]
+  },
+  {
+    "token": "time_credit",
+    "label": "time credit",
+    "aliases": [
+      "time credit",
+      "career break",
+      "thematic leave",
+      "tijdskrediet",
+      "loopbaanonderbreking",
+      "thematisch verlof",
+      "credit-temps",
+      "crédit-temps",
+      "interruption de carriere",
+      "interruption de carrière",
+      "conge thematique",
+      "congé thématique"
+    ]
+  },
+  {
+    "token": "career_break",
+    "label": "career break",
+    "aliases": [
+      "career break",
+      "sabbatical",
+      "loopbaanonderbreking",
+      "sabbatical",
+      "sabbatjaar",
+      "interruption de carriere",
+      "interruption de carrière",
+      "sabbatique",
+      "annee sabbatique",
+      "année sabbatique"
+    ]
+  },
+  {
+    "token": "dismissal",
+    "label": "dismissal",
+    "aliases": [
+      "dismissal",
+      "termination of employment",
+      "contract termination",
+      "firing",
+      "redundancy",
+      "ontslag",
+      "afdanking",
+      "c4",
+      "licenciement",
+      "renvoi",
+      "rupture de contrat"
+    ]
+  },
+  {
+    "token": "contract_type",
+    "label": "contract type",
+    "aliases": [
+      "permanent contract",
+      "fixed-term contract",
+      "cdi",
+      "cdd",
+      "temporary contract",
+      "vast contract",
+      "bepaalde duur",
+      "onbepaalde duur",
+      "tijdelijk contract",
+      "cdi",
+      "cdd",
+      "contrat a duree indeterminee",
+      "contrat à durée indéterminée",
+      "contrat a duree determinee",
+      "contrat à durée déterminée"
+    ]
+  },
+  {
+    "token": "minimum_wage",
+    "label": "minimum wage",
+    "aliases": [
+      "minimum wage",
+      "guaranteed minimum",
+      "gmmi",
+      "gmmmi",
+      "minimumloon",
+      "gewaarborgd minimum",
+      "salaire minimum",
+      "rmmg",
+      "revenu minimum garanti"
+    ]
+  },
+  {
+    "token": "indexation",
+    "label": "indexation",
+    "aliases": [
+      "indexation",
+      "wage indexation",
+      "salary indexation",
+      "indexering",
+      "loonindexering",
+      "indexation",
+      "indexation salariale"
+    ]
+  },
+  {
+    "token": "works_council",
+    "label": "works council",
+    "aliases": [
+      "works council",
+      "cppt",
+      "committee for prevention",
+      "ondernemingsraad",
+      "or",
+      "cpbw",
+      "conseil d'entreprise",
+      "cppt",
+      "comite d'entreprise",
+      "comité d'entreprise"
+    ]
+  },
+  {
+    "token": "union_delegation",
+    "label": "union delegation",
+    "aliases": [
+      "union delegation",
+      "trade union",
+      "shop steward",
+      "vakbondsafvaardiging",
+      "vakbond",
+      "syndicale afvaardiging",
+      "delegation syndicale",
+      "délégation syndicale",
+      "syndicat"
+    ]
+  },
+  {
+    "token": "gdpr",
+    "label": "gdpr",
+    "aliases": [
+      "gdpr",
+      "data protection",
+      "dpa",
+      "data breach",
+      "gdpr",
+      "avg",
+      "gegevensbescherming",
+      "datalek",
+      "rgpd",
+      "protection des donnees",
+      "protection des données",
+      "fuite de donnees",
+      "fuite de données"
+    ]
+  },
+  {
+    "token": "country_BE",
+    "label": "belgium",
+    "aliases": [
+      "belgium",
+      "belgie",
+      "belgië",
+      "belgique"
+    ]
+  },
+  {
+    "token": "country_NL",
+    "label": "netherlands",
+    "aliases": [
+      "netherlands",
+      "nederland",
+      "pays-bas",
+      "holland"
+    ]
+  },
+  {
+    "token": "country_FR",
+    "label": "france",
+    "aliases": [
+      "france",
+      "frankrijk"
+    ]
+  },
+  {
+    "token": "country_DE",
+    "label": "germany",
+    "aliases": [
+      "germany",
+      "duitsland",
+      "allemagne",
+      "deutschland"
+    ]
+  },
+  {
+    "token": "country_LU",
+    "label": "luxembourg",
+    "aliases": [
+      "luxembourg",
+      "luxemburg"
+    ]
+  },
+  {
+    "token": "country_ES",
+    "label": "spain",
+    "aliases": [
+      "spain",
+      "spanje",
+      "espagne",
+      "españa",
+      "espana"
+    ]
+  },
+  {
+    "token": "country_IT",
+    "label": "italy",
+    "aliases": [
+      "italy",
+      "italie",
+      "italië",
+      "italia"
+    ]
+  },
+  {
+    "token": "country_PT",
+    "label": "portugal",
+    "aliases": [
+      "portugal"
+    ]
+  },
+  {
+    "token": "country_PL",
+    "label": "poland",
+    "aliases": [
+      "poland",
+      "polen",
+      "pologne"
+    ]
+  },
+  {
+    "token": "country_UK",
+    "label": "united kingdom",
+    "aliases": [
+      "united kingdom",
+      "uk",
+      "royaume-uni",
+      "verenigd koninkrijk",
+      "england",
+      "angleterre"
+    ]
+  },
+  {
+    "token": "country_IE",
+    "label": "ireland",
+    "aliases": [
+      "ireland",
+      "ierland",
+      "irlande"
+    ]
+  },
+  {
+    "token": "country_RO",
+    "label": "romania",
+    "aliases": [
+      "romania",
+      "roemenie",
+      "roemenië",
+      "roumanie"
+    ]
+  },
+  {
+    "token": "country_AT",
+    "label": "austria",
+    "aliases": [
+      "austria",
+      "oostenrijk",
+      "autriche"
+    ]
+  },
+  {
+    "token": "country_CH",
+    "label": "switzerland",
+    "aliases": [
+      "switzerland",
+      "zwitserland",
+      "suisse"
+    ]
+  },
+  {
+    "token": "country_US",
+    "label": "united states",
+    "aliases": [
+      "united states",
+      "usa",
+      "verenigde staten",
+      "etats-unis",
+      "états-unis"
+    ]
+  },
+  {
+    "token": "worker_white_collar",
+    "label": "white collar",
+    "aliases": [
+      "white collar"
+    ]
+  },
+  {
+    "token": "worker_blue_collar",
+    "label": "blue collar",
+    "aliases": [
+      "blue collar"
+    ]
+  },
+  {
+    "token": "worker_executive",
+    "label": "executive",
+    "aliases": [
+      "executive"
+    ]
+  }
+]

@@ -9,6 +9,7 @@ fill `topics` and hands the payload to Transport.send() once.
 """
 
 import hashlib
+import secrets
 import threading
 from dataclasses import replace
 from enum import StrEnum
@@ -24,6 +25,7 @@ from topic_extractor import extract_topics
 CHAT_SURFACES = frozenset({
     "teams_desktop", "teams_web", "slack_desktop", "slack_web", "google_chat_web",
 })
+_SESSION_ID = secrets.token_hex(6)
 
 
 class Action(StrEnum):
@@ -38,7 +40,7 @@ class Action(StrEnum):
 
 def context_id(surface_id: str) -> str:
     """Short opaque id for a text field, so OS element ids don't travel."""
-    return "c_" + hashlib.sha256(surface_id.encode("utf-8")).hexdigest()[:12]
+    return "c_" + _SESSION_ID + hashlib.sha256(surface_id.encode("utf-8")).hexdigest()[:12]
 
 
 class Pipeline:
@@ -59,7 +61,25 @@ class Pipeline:
         self._panel = panel
         self._focused: Surface | None = None
         self._surface_ids: dict[str, str] = {}
+        self._compose_numbers: dict[str, int] = {}
+        self._privacy_epoch = 0
         self.payloads = 0
+
+    def suspend(self) -> None:
+        """Erase local text and detector windows when consent or focus cannot be trusted."""
+        if self._focused is None and not self._surface_ids:
+            return
+        for surface_id in self._surface_ids.values():
+            self._buffer.clear(surface_id)
+        self._focused = None
+        self._detector.reset()
+        self._surface_ids.clear()
+        self._compose_numbers.clear()
+        self._privacy_epoch += 1
+
+    def accepts_focus(self, surface: Surface) -> bool:
+        """Permit timed emissions only while the same approved field remains focused."""
+        return self._focused is not None and self._focused.id == surface.id
 
     def handle(
         self,
@@ -85,8 +105,9 @@ class Pipeline:
         if action == Action.SUBMIT:
             self._emit(self._event(target, KeyKind.SUBMIT, ts_ms))
             self._buffer.clear(target.id)
+            self._compose_numbers[target.id] = self._compose_numbers.get(target.id, 0) + 1
         elif action == Action.MANUAL:
-            payload = self._emit(self._detector.manual_trigger(context_id(target.id)))
+            payload = self._emit(self._detector.manual_trigger(self._context_key(target.id)))
             topics = list(payload.topics) if payload is not None else []
             if self._panel is not None:
                 self._panel.open(topics)
@@ -118,11 +139,17 @@ class Pipeline:
         self._focused = target
 
     def _event(self, surface: Surface, kind: KeyKind, ts_ms: int, **fields) -> SignalPayload | None:
-        ctx = context_id(surface.id)
+        ctx = self._context_key(surface.id)
         self._surface_ids[ctx] = surface.id
         return self._detector.handle_event(
             KeyEvent(ts=ts_ms, kind=kind, surface=surface.name, context_id=ctx, **fields)
         )
+
+    def _context_key(self, surface_id: str) -> str:
+        """Separate successive compose sessions even when an editor reuses its OS element id."""
+        number = self._compose_numbers.get(surface_id, 0)
+        suffix = f"_{number}" if number else ""
+        return context_id(surface_id) + suffix + (f"_e{self._privacy_epoch}" if self._privacy_epoch else "")
 
     def _emit(self, payload: SignalPayload | None) -> SignalPayload | None:
         """Add topics from the field's text and send. Returns the payload as sent."""

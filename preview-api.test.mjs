@@ -160,7 +160,7 @@ test('input validation rejects unknown people, empty or oversized text and inval
   for (const text of ['', ' ', 'a'.repeat(1001), 123]) {
     assert.throws(() => store.mutate('/ui-api/messages', { intent: 'ask', personId: 'sarah', text }), /1000/);
   }
-  assert.throws(() => store.mutate('/ui-api/preferences', { autoDetect: 'false' }), /boolean/);
+  assert.throws(() => store.mutate('/ui-api/preferences', { allowPings: 'false' }), /boolean/);
   assert.throws(() => store.mutate('/ui-api/preferences', { unknown: true }), /Unknown/);
   assert.throws(() => store.mutate('/ui-api/messages', { personId: 'sarah', text: 'Hi' }), /question/);
   assert.throws(() => store.mutate('/ui-api/demo-incoming', { personId: 'sarah', kind: 'other' }), /Choose/);
@@ -187,6 +187,50 @@ test('HTTP API rejects cross-origin writes, invalid JSON and oversized bodies', 
     body: JSON.stringify({ text: 'a'.repeat(9000) }) });
   assert.equal(large.status, 413);
   const updated = await fetch(`${url}/ui-api/preferences`, { method: 'POST', headers,
-    body: '{"autoDetect":false}' });
-  assert.equal((await updated.json()).account.autoDetect, false);
+    body: '{"allowPings":false}' });
+  assert.equal((await updated.json()).account.allowPings, false);
+});
+
+test('backend bridge protects consent and sends only derived explicit answer fields', async t => {
+  const calls = [];
+  let enabled = false;
+  const bridge = async (path, body) => {
+    calls.push({ path, body });
+    if (path === '/preferences') return { capture_enabled: enabled,
+      allowed_surfaces: ['other'], hidden_topics: [] };
+    return { accepted: true };
+  };
+  const store = createPreviewStore({ schedule() {} });
+  const server = createServer((request, response) =>
+    servePreviewApi(request, response, request.url, store, bridge));
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const url = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, body, origin = url) => fetch(`${url}/ui-api${path}`, {
+    method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  assert.equal((await post('/capture-preferences', {}, 'https://attacker.example')).status, 403);
+  assert.equal(calls.length, 0);
+  const answer = { personId: 'tom', intent: 'reply',
+    text: 'For the year-end bonus, check eligible service months and absences before calculating the amount.',
+    writing: { chars_typed: 95, fluency_run_seconds: 15, longest_fluency_run_seconds: 15 } };
+  await post('/messages', answer);
+  assert.equal(calls.some(call => call.path === '/analyze'), false);
+  enabled = true;
+  await post('/messages', answer);
+  const signal = calls.find(call => call.path === '/analyze').body;
+  assert.equal(signal.is_reply, true);
+  assert.equal(signal.prior_message_char_count > 0, true);
+  assert.equal(signal.surface, 'other');
+  assert.ok(signal.topics.includes('year_end_bonus'));
+  assert.ok(!JSON.stringify(signal).includes('check eligible'));
+  assert.ok(Object.values(signal).every(value => typeof value !== 'string' || !value.includes(' ')));
+  await post('/messages', answer);
+  const signals = calls.filter(call => call.path === '/analyze');
+  assert.equal(signals[0].body.context_id, signals[1].body.context_id);
+  const before = signals.length;
+  await post('/messages', { ...answer, personId: 'sarah', intent: 'ask' });
+  assert.equal(calls.filter(call => call.path === '/analyze').length, before);
 });

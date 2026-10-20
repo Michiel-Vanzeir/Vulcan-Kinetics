@@ -64,9 +64,9 @@ We are one of 32 finalist teams (out of 800+ participants).
 
 ## The core idea
 
-1. **Push, not pull.** The user never goes to a search page. Expertise comes to them in whatever app they're already writing in, desktop or browser: Gmail, Outlook, Teams, Slack, Word, a ticket.
-2. **Trust signals, not just names.** Every suggested expert shows how recently and how fluently they worked on the topic, what they authored, and who implicitly vouches for them. Old expertise is labelled as old.
-3. **Expertise learned from how people write, not from profiles.** The same typing signal that detects doubt also detects confidence: someone who writes fluently about a topic, answers questions on it, and authors documents about it knows it.
+1. **Push, not pull.** An opted-in Windows desktop app can trigger the people panel while the employee writes. Browser capture is disabled because page titles cannot establish a trusted work origin.
+2. **Signals with limits.** Topic searches use backend rankings and show recent answer contexts. These are heuristic suggestions, not verified expertise. Synthetic chats and feedback are labelled separately.
+3. **Learning from explicit answers.** The preview can send derived writing measurements for answers to recorded questions when separately enabled. Desktop capture detects doubt and topics; it does not infer reply metadata or learn expertise from ordinary desktop typing.
 4. **Local-first privacy.** Keystrokes are processed on the employee's machine. Only small derived events (topic ids, signal, fluency) cross the network. No sentences, no names, no content.
 5. **Consent built in.** Opt-in per app (surface), opt-out per topic. Personal pages, private windows, passwords and other sensitive fields are never captured. The topic opt-out is enforced in the backend, not just hidden in the UI.
 6. **Knowledge gap.** When nobody has recent expertise on a topic, whoknows shows a gap instead of a weak name.
@@ -75,11 +75,11 @@ We are one of 32 finalist teams (out of 800+ participants).
 
 | SD Worx asks | whoknows |
 |---|---|
-| Automate what can happen in the background | The capture agent turns everyday writing into expertise signals: fluency, who answers whom, authored artifacts. Nobody fills in a profile. |
-| Verify when human judgement adds value | Verification is implicit: when A asks about X, B answers, and A doesn't ask again for a week, that counts as a vouch for B. Stale expertise decays automatically through the recency term. |
+| Automate what can happen in the background | Desktop typing produces doubt and topic signals. Explicit preview answers can supply answer signals after separate opt-in; desktop reply detection and artifact ingestion are not implemented. |
+| Verify when human judgement adds value | Explicit demo feedback illustrates the interaction. It does not verify correctness or affect backend expertise. Signal evidence decays; three distinct answer contexts are required for a suggestion. |
 | Minimise effort and attention | Invisible until the user is struggling. Otherwise one shortcut. |
-| Integrate into existing ways of working | One local agent covers every writing surface. No new app, no per-app add-ins. IT deploys one signed installer via its existing MDM. |
-| Make it understandable when people need to act | Every suggestion says *why*: the evidence, how old it is, and who vouched. Stale or weak expertise is labelled as such. |
+| Integrate into existing ways of working | A locally run Windows agent supports opted-in desktop fields. There is no signed installer or MDM deployment in this prototype. |
+| Make it understandable when people need to act | Suggestions show signal reasons, answer contexts and recency. Missing topics show gaps. Synthetic vouches are confined to the demo directory. |
 | Think beyond documents | The answer is a person and the reason to trust them, not another document. |
 
 **Keep this table honest.** Before the pitch, check every row against the **Features** table. Only claim what has status `done`; present the rest as architecture.
@@ -110,18 +110,20 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | 3 | Capture agent: signal detector (raw signal counts per trigger, per text field; see "Signal detector output") | done | Michiel |
 | 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | done | Michiel |
 | 5 | Capture agent: end-to-end pipeline (hook -> detector -> extractor -> backend format) and single, auditable send path (`agent/transport.py`) | done | Michiel |
-| 6 | Capture agent surfaces: desktop apps (Teams, Outlook, Word, PowerPoint, OneNote, Slack, Notion) and work web apps in any browser (Gmail, Outlook, Teams, Google Docs, Slack, Notion, Confluence, Jira, SharePoint, Zendesk, Salesforce, ServiceNow) | in progress (Michiel) | Michiel |
+| 6 | Capture agent surfaces: explicit desktop opt-in, sensitivity and focus checks before bounded queueing; browser capture disabled | done | Thoma |
 | 7 | Manual hotkey trigger (Ctrl+Alt+W) | done | Michiel |
 | 8 | Fixed vocabulary of payroll topic ids (35 topics + countries, PC numbers, worker classes for the demo) | done | Michiel |
 | 9 | Backend `/analyze`: signal payload in, validated, handed to the expertise filter; `/experts`: topic tokens in, ranked experts out (`Neo4J-backend/app/signals.py`) | done | Michiel |
 | 9b | Backend scoring module: TYPING / HESITATING / STRUGGLING state per text field, from signal payloads | planned | _teammate TBD_ |
-| 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | in progress (Sven) | Sven |
-| 11 | Expertise scoring: fluency, artifact weight, peer vouches, recency decay, knowledge-gap threshold | planned | |
-| 12 | Side panel with expert cards, evidence line, trust signals, "Ask [name]" | planned | |
-| 13 | Consent UI: opt-in per surface, opt-out per topic | planned | |
+| 10 | Backend `/experts`: fixed topic ids, heuristic ranks, per-topic opt-out and explicit knowledge gaps, connected to the people panel | done | Thoma |
+| 11 | Heuristic answer scoring with recency decay, replay protection and at least three independent answer contexts; no correctness verification | done | Thoma |
+| 12 | Side panel with backend signal cards and a separately labelled synthetic demo directory and chats | done | Thoma |
+| 13 | Persisted consent UI: capture off by default, per-surface opt-in, per-topic exclusion; backend enforcement and expiring agent consent cache | done | Thoma |
 | 14 | Local webpage reproducing the reference settings popup and searchable people panel, with synthetic cards, simulated conversations, saved toggle and connection-state testing | done | Thoma |
 | 15 | Local preview account availability: saved ping opt-out, 50-minute DND, profile availability and simulated ping actions | done | Thoma |
 | 16 | Local UI API for synthetic messaging, inbox pings, replies, read status, feedback and separate account Settings; state lasts for the server session | done | Thoma |
+| 17 | Employee bearer authentication, server-owned identity and separate administrator access for graph APIs | done | Thoma |
+| 18 | Opt-in learning from explicit preview answers: measured writing counts and recorded reply context; raw chat text stays on the local preview server | done | Thoma |
 
 ---
 
@@ -145,7 +147,7 @@ native apps                        per text field)
 
 The agent measures; the backend interprets. The detector only counts things (pauses, deletions, hedge words, ...). The backend's scoring module turns those counts into a hesitation state and expertise scores. Doing it this way means expertise scoring can use raw signals across sessions, and the state machine can be retuned by replaying stored payloads. Privacy is the same either way, because the payload holds only counts and categories.
 
-**Why a local agent and not add-ins per app:** one installer covers every writing surface, desktop apps and browsers alike. No Chrome extension, Office Add-in, Teams app or Slack app to deploy. IT ships one signed MSI or PKG through its existing MDM.
+**Why a local agent:** the prototype uses Windows UI Automation for explicitly opted-in desktop apps. It is run from source. Browser capture and a signed installer are outside the implemented scope.
 
 The capture agent is the data source for the expertise graph. It has two jobs:
 
@@ -157,7 +159,7 @@ The capture agent is the data source for the expertise graph. It has two jobs:
 **Capture buffer**
 - Fixed-size ring buffer (about 4 KB), overwritten in place when full, so memory use stays constant.
 - Each entry holds a character, a timestamp and a surface id. The surface id ties keystrokes to the focused app and text field via the OS accessibility API.
-- **What gets captured:** opted-in desktop work apps, and browser tabs only when the window title shows a known work web app (Gmail, Outlook, Teams, ...). Any other page (banking, shopping, personal sites), private/incognito windows and personal browser profiles are never captured. When the focused field can't be identified, the keystroke is dropped (fail closed).
+- **What gets captured:** only explicitly opted-in desktop fields with current backend consent. Browser processes are excluded. Unknown, sensitive, changing or slow-to-resolve fields are dropped before characters enter the bounded queue. Field labels are a defensive heuristic, not a complete personal-data classifier.
 - Password fields detected via the accessibility API (`kSecureTextField` on macOS, `ES_PASSWORD` / UIA `IsPassword` on Windows) are skipped entirely.
 - Other sensitive fields are skipped too: fields whose label or id mentions credentials (PIN, verification code, ...), payment cards, bank accounts or national ids (in EN/NL/FR/DE), plus the browser address bar.
 - Numbers and email addresses are stripped from the window before extraction runs.
@@ -292,27 +294,11 @@ The code path from keystrokes to network is **one function, auditable in a singl
 
 The agent only sees a sliding window. History lives in the backend, built from the event stream. For each (user, topic) pair the backend tracks frequency, recency, surfaces and signals.
 
-Knowing versus talking about is the hard part: frequency alone surfaces the loudest person, not the most knowledgeable. The score combines four signals:
+Knowing versus talking about remains an unvalidated inference. The SQLite signal filter combines profile relevance, decayed answer signals and surface breadth. At least three distinct credited answer contexts are required; cumulative snapshots of one answer cannot create multiple contexts. Replays and older snapshots are ignored. Topic exclusions suppress both new contributions and matching.
 
-1. **Fluency.** The person wrote about the topic without hesitation, deletions or hedge words. This inverts the signal that drives hesitation detection.
-2. **Direction of the conversation.** Who answers versus who asks, measured from message length ratio and reply direction via the accessibility API, without reading content. Answerers score; askers don't.
-3. **Artifact authorship.** Wrote a Confluence page, closed a Jira ticket tagged with the topic, or authored a Word doc. Weighted much higher than chat mentions.
-4. **Peer validation.** When A asks about X, B replies, and A doesn't ask again for a week, that is an implicit vouch for B on X. This drives the "who vouches for them" trust signal.
+The preview answer adapter has explicit question/reply context and measures writing inputs. It sends counts and fixed topic ids to `/analyze` only after consent. Desktop UI Automation does not supply reply metadata, so ordinary desktop typing cannot establish answer expertise. Seed history is synthetic and identified as such.
 
-```
-expertise(user, topic) = fluency * artifact_weight * peer_vouches * recency_decay
-
-opted out of this topic         -> never returned
-best score below threshold      -> "knowledge gap"
-```
-
-Stale knowledge decays automatically through `recency_decay`, which is how stale expertise gets shown as stale.
-
-**Built so far** (`Neo4J-backend/`, Flask + Neo4j): the org hierarchy, the knowledge people
-hold, clients, knowledge revisions, and `GET /who-knows` (semantic search ranked by person).
-This is the substrate for the expertise graph. The whoknows scoring above (fluency, vouches,
-recency decay, knowledge-gap threshold, per-topic opt-out) and document ingestion are **not**
-built yet. Interface and the ingestion plan: `Neo4J-backend/README.md`.
+The Neo4j artifact graph and its administrator APIs are separate from this ranking path. Artifact ingestion, implicit weekly vouches and correctness verification are not implemented. See `docs/trust-validation.md` for validation limits and the regression checks.
 
 ### Synthetic data
 
@@ -325,15 +311,15 @@ A fictional payroll company of 15 to 20 employees with deliberate expertise patt
 ## Hackathon demo scope
 
 - The capture agent alone (no extension) on **one OS**.
-- Captures desktop work apps and work web apps in the browser. Lead the demo with **Teams** (highest symbolic value for SD Worx) and Gmail or Outlook.
+- Captures opted-in desktop fields only. Lead the demo with **Teams desktop** after enabling its capture consent.
 - The rest (second OS, MDM installer, artifact ingestion from Confluence/Jira) lives as architecture on the slide.
 
 ## Non-negotiables
 
-- **Raw text never leaves the machine.** Only derived payloads cross the network. Password and sensitive fields, personal pages and private windows are never captured. Numbers and email addresses are stripped before extraction.
+- **Raw desktop text stays local.** Only derived payloads cross the agent network boundary. Browser processes, password fields and fields identified as sensitive are excluded. Numbers and email addresses are stripped before extraction. Personal documents within an opted-in desktop app cannot reliably be identified; use synthetic work data only.
 - **One auditable send path:** all network calls from the agent go through a single function in a single file.
 - **Security (10%):** check authorisation server-side on every ID (IDOR is the obvious risk in a tool that exposes data about colleagues). Keep API keys in environment variables, never in the repo. Keep the endpoint surface small. Run Aikido early.
-- **Consent:** opt-in per surface; anything not on the work-surface list (personal browser profiles, banking, anything outside work) is never captured. Opt-out per topic is filtered in the backend.
+- **Consent:** explicit desktop surface opt-in, capture off by default and topic exclusions enforced in the backend. Browsers are excluded entirely. Process checks alone do not distinguish personal from work documents within desktop apps.
 - **Honesty in the UI:** show stale or weak expertise as stale or weak. Never present a guess as certainty.
 - **Show only what works:** the pitch, deck and description must not claim features that aren't `done`.
 - **Demo without our own device:** every key moment must be capturable as a screenshot or short recording.
@@ -342,15 +328,14 @@ A fictional payroll company of 15 to 20 employees with deliberate expertise patt
 
 Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
-- A browser extension or per-app add-ins (Office Add-in, Teams app, Slack app). The local agent covers browsers and desktop apps.
-- Sending, storing or logging raw typed text anywhere, including debug logs.
+- Browser capture, a browser extension or per-app add-ins. Verified web origins and work-profile boundaries are outside this prototype.
+- Sending captured desktop text to a server or logging it. Explicit synthetic chat messages are intentionally stored on the loopback preview server for the current session.
 - Routing incoming info@ emails to the right person (same engine, different input; mention it as a future extension in the pitch only).
 
 ## Open decisions
 
 - Agent OS: the spec prefers macOS; the agent is currently built for Windows (`capture-agent/surface_windows.py` is the only OS-specific file). Decide which machine runs the demo.
-- Reply detection: `is_reply`, `prior_message_char_count` and `question_marks_in_prior_message` are always false/0, because the agent doesn't read the message being replied to.
-- Scoring formula: the product zeroes a score when any factor is 0 (e.g. no vouches yet). Each factor likely needs a floor (e.g. `1 + vouches`). Also decide where "direction of the conversation" enters the formula; it's listed as a signal but isn't a factor yet.
+- Empirical validation: evaluate topic extraction, hesitation detection and suggestions against independently labelled examples before making accuracy or productivity claims.
 
 ---
 
@@ -402,7 +387,7 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
 ## Project description (for Builderbase)
 
-> Expertise finds you, not the other way around. whoknows notices when you hesitate while writing, in Teams, email or a document, or you can trigger it yourself with a shortcut. It then shows which colleagues have the expertise you need, with trust signals: how recent their expertise is, how fluently they write about it and who vouches for them. It learns from the work people already do, so nobody has to keep a profile up to date. Your text never leaves your machine: only topic labels do.
+> Expertise finds you, not the other way around. whoknows can notice hesitation in explicitly opted-in Windows desktop fields and suggest colleagues using recent answer signals. Missing topics are shown as knowledge gaps. The prototype uses synthetic history and demo conversations; its suggestions are heuristics, not verified expertise. Captured desktop text stays on the machine. Only derived counts and fixed topic labels reach the backend, and capture starts off.
 
 ---
 
@@ -433,3 +418,4 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Michiel): Ctrl+Alt+W now opens Thomas's people panel as a popup window (Edge/Chrome app mode, top right), pre-filtered on the current field's topic tokens. Added a popup mode (`?popup=1`, `?topics=`) to the panel; the preview page is unchanged.
 - 2026-10-20 (Michiel): The people panel now also opens by itself when the backend says the user is struggling: merged Daan's `doubt_alert` from the expertise filter into `/analyze`'s answer, and the agent opens the popup on it (never over a panel that is already open). This is the push moment; Ctrl+Alt+W stays as the manual route.
 - 2026-10-20 13:55 (Daan): Demo data decided: the expertise filter is seeded with synthetic answering history (`Neo4J-backend/seed_signals.py`) using the panel's people, since live typing can't count as answering until reply detection exists. `/experts` keeps consulting only the filter, not the Neo4j graph. Sarah, Emma and Lucas are current experts; Tom's 2024 history decays out, so stale expertise is never presented as current. Added `GET /health` so the settings popup shows the real backend state.
+- 2026-10-20 14:53 (Thoma): Connected topic cards to backend signal rankings and preserved every topic's gap. Added persisted default-off consent, topic exclusions, employee authentication, bounded capture queues and replay-safe context credits. Cut browser capture because titles cannot establish work origin. Added opt-in learning from explicit preview answers; desktop reply inference remains unsupported. Labelled rankings heuristic and removed unsupported verification and deployment claims.

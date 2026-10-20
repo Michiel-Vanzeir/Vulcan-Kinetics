@@ -4,13 +4,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from agent.config import (
-    BROWSER_PROCESSES,
-    PRIVATE_WINDOW_MARKERS,
-    PROCESS_SURFACES,
-    SENSITIVE_FIELD_WORDS,
-    WEB_SURFACES,
-)
+from agent.config import BROWSER_PROCESSES, PROCESS_SURFACES, SENSITIVE_FIELD_WORDS
 
 @dataclass(frozen=True, slots=True)
 class Surface:
@@ -29,10 +23,8 @@ _SENSITIVE_FIELD = re.compile(
 def surface_name(process: str, window_title: str) -> str | None:
     """Surface for the foreground window, or None if it must not be captured."""
     if process in BROWSER_PROCESSES:
-        title = window_title.lower()
-        if any(marker in title for marker in PRIVATE_WINDOW_MARKERS):
-            return None
-        return next((name for marker, name in WEB_SURFACES if marker in title), None)
+        # A page title cannot establish its origin or whether this is a work profile.
+        return None
     return PROCESS_SURFACES.get(process)
 
 

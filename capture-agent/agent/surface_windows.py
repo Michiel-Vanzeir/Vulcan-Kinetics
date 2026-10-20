@@ -1,8 +1,8 @@
 """Resolve the focused app and text field on Windows via UI Automation.
 
-The app comes from the foreground window's process and title, because Electron/WebView2
-apps like new Teams host their text fields in helper processes, and browsers need the
-title to tell work apps from personal pages. The field identity and password flag come
+The app comes from the foreground window's process, because Electron/WebView2
+apps like new Teams host their text fields in helper processes. Browser processes are
+excluded. The field identity and password flag come
 from the focused UI Automation element. UIA's IsPassword covers Win32 ES_PASSWORD edits
 as well as password inputs in web content.
 """
@@ -84,6 +84,10 @@ def focused_surface() -> Surface | None:
         return None
     control = auto.GetFocusedControl()
     if control is None:
+        return None
+    if control.ControlTypeName not in {"EditControl", "DocumentControl"}:
+        return None
+    if _user32.GetForegroundWindow() != hwnd:
         return None
     runtime_id = ".".join(str(part) for part in control.GetRuntimeId())
     is_sensitive = bool(control.Element.CurrentIsPassword) or is_sensitive_field(

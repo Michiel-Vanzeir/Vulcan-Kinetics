@@ -77,14 +77,23 @@
           <h2 class="account-section-heading">Writing assistance</h2>
           <label class="ping-preference" for="account-auto-detect">
             <span>Detect hesitation<small>Flags pauses, rewrites and hedging.</small></span>
-            <input id="account-auto-detect" type="checkbox" checked />
+            <input id="account-auto-detect" type="checkbox" />
           </label>
+          <p id="capture-status" role="status">Capture is off until consent is loaded.</p>
+          <div id="capture-surfaces"></div>
+          <label class="ping-preference" for="hidden-topics">
+            <span>Hide my expertise on these topics<small>Excluded from shared signals and matching.</small></span>
+          </label>
+          <select id="hidden-topics" multiple aria-label="Topics excluded from collection and matching"></select>
+          <label for="hidden-committees">Excluded joint committees (for example PC_200)</label>
+          <input id="hidden-committees" type="text" maxlength="700" placeholder="PC_200, PC_124" />
+          <button id="save-capture" class="vote" type="button">Save capture settings</button>
 
         </div>
       </section>
       <div id="ui-error" role="alert" hidden></div>
       <button id="retry" class="vote retry-button" type="button" hidden>Try again</button>
-      <div class="reason">Demo preview · synthetic people and local demo messaging</div>
+      <div class="reason">Synthetic demo chats · topic matches use backend signals, not verified expertise</div>
       <div class="list-view">
       <h1 class="panel-heading">Find expertise</h1>
       <label class="search-label" for="people-search">Search your colleagues by name or topic</label>
@@ -96,7 +105,7 @@
       <div class="body" aria-live="polite"></div>
       </div>
       <section class="chat-view" aria-label="Conversation" hidden></section>
-      <footer>Only colleagues who opted in are shown · Esc to close</footer>
+      <footer>Heuristic suggestions · synthetic demo conversations · Esc to close</footer>
     </section>
     <button id="reopen" class="btn" type="button" hidden>Open whoknows</button>
   </body>

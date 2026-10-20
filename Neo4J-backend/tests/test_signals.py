@@ -19,10 +19,16 @@ VALID = {
 
 @pytest.fixture
 def client(monkeypatch):
+    monkeypatch.setenv("WHOKNOWS_AUTH_TOKEN", "employee-test-token")
+    monkeypatch.setenv("WHOKNOWS_USER_ID", "emp_014")
     monkeypatch.setattr(signals, "FILTER_DB_PATH", ":memory:")
     monkeypatch.setattr(signals, "_filter", None)
     monkeypatch.setattr(signals, "_store", None)
-    return create_app().test_client()
+    client = create_app().test_client()
+    client.environ_base["HTTP_AUTHORIZATION"] = "Bearer employee-test-token"
+    client.post("/preferences", json={"capture_enabled": True,
+                "allowed_surfaces": ["teams_desktop"], "hidden_topics": []})
+    return client
 
 
 def test_valid_payload_is_accepted(client):
@@ -80,7 +86,7 @@ def test_filter_process_called_with_payload(client, monkeypatch):
 
 def test_experts_returns_ranked_list(client, monkeypatch):
     for user_id in ("emp_014", "emp_021", "emp_003"):
-        client.post("/analyze", json={**VALID, "user_id": user_id})
+        signals._on_filter_thread(signals._process, {**VALID, "user_id": user_id})
     scores = {"emp_014": 0.9, "emp_021": 0.7}
     monkeypatch.setattr(
         expertise_filter.ExpertiseFilter,
@@ -91,10 +97,65 @@ def test_experts_returns_ranked_list(client, monkeypatch):
     assert response.status_code == 200
     experts = response.get_json()["experts"]
     assert isinstance(experts, list)
-    assert [e["user_id"] for e in experts] == ["emp_014"]
+    assert [e["user_id"] for e in experts] == ["emp_021"]
     assert experts[0]["profile"]["job_title"] == "Payroll consultant"
 
 
 def test_experts_rejects_free_text(client):
     assert client.post("/experts", json={"topics": ["who knows about notice"]}).status_code == 400
     assert client.post("/experts", json={"topics": []}).status_code == 400
+
+
+def test_employee_authentication_and_identity_are_enforced(client):
+    assert client.get("/preferences", headers={"Authorization": ""}).status_code == 401
+    assert client.post("/analyze", json={**VALID, "user_id": "emp_021"}).status_code == 403
+    assert client.post("/nodes", json={}).status_code == 403
+    assert client.get("/health", headers={"Authorization": ""}).status_code == 200
+
+
+def test_consent_revocation_blocks_new_signals(client):
+    response = client.post("/preferences", json={"capture_enabled": False})
+    assert response.status_code == 200
+    assert client.post("/analyze", json=VALID).status_code == 403
+    assert client.get("/preferences").json["capture_enabled"] is False
+
+
+def test_surface_opt_in_is_required(client):
+    assert client.post("/analyze", json={**VALID, "surface": "word_desktop"}).status_code == 403
+    assert client.post("/preferences", json={"allowed_surfaces": ["unknown"]}).status_code == 400
+
+
+def test_hidden_topics_are_not_collected_or_ranked(client, monkeypatch):
+    client.post("/preferences", json={"capture_enabled": True,
+                "allowed_surfaces": ["teams_desktop"], "hidden_topics": ["notice_period"]})
+    calls = []
+    monkeypatch.setattr(expertise_filter.ExpertiseFilter, "process",
+                        lambda self, payload: calls.append(payload))
+    assert client.post("/analyze", json=VALID).status_code == 200
+    assert calls[0]["topics"] == ["country_ES"]
+    assert client.post("/experts", json={"topics": ["country_ES"]}).json["knowledge_gaps"] == ["country_ES"]
+
+
+def test_unknown_topic_ids_and_oversized_requests_are_rejected(client):
+    assert client.post("/analyze", json={**VALID, "topics": ["secret_payload"]}).status_code == 400
+    assert client.post("/analyze", data=" " * 32769,
+                       content_type="application/json").status_code == 413
+
+
+def test_seeded_history_drives_ranking_and_keeps_spain_gap(client):
+    """Exercise the real demo history and scorer through authenticated HTTP ranking."""
+    import time
+    from seed_signals import HISTORY, DAY_MS, answering_payload
+    now = int(time.time() * 1000)
+    for user_id, (topics, events) in HISTORY.items():
+        for index, (days_ago, surface) in enumerate(events):
+            signals._on_filter_thread(signals._process,
+                answering_payload(user_id, f"seed-{index}", now - days_ago * DAY_MS,
+                                  surface, topics))
+    bonus = client.post("/experts", json={"topics": ["year_end_bonus", "PC_200"]}).json
+    assert {expert["user_id"] for expert in bonus["experts"]} == {"emp_021"}
+    assert bonus["knowledge_gaps"] == []
+    notice = client.post("/experts", json={"topics": ["notice_period", "country_ES"]}).json
+    assert notice["experts"][0]["user_id"] == "emp_077"
+    assert notice["knowledge_gaps"] == ["country_ES"]
+    assert "context_credits" not in notice["experts"][0]["evidence"]

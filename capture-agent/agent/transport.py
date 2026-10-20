@@ -78,13 +78,36 @@ class Transport:
         self._echo = echo
         self._on_doubt = on_doubt
         self._converter = BackendPayloads()
-        self._queue: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        self._queue: queue.Queue[dict[str, Any] | None] = queue.Queue(maxsize=128)
         self._thread = threading.Thread(target=self._run, daemon=True, name="transport")
         self._thread.start()
         self.sent = 0
         self.retried = 0
         self.dropped = 0
         self.rejected = 0
+        self._consent = frozenset()
+        self._consent_at = 0.0
+        self._hidden = frozenset()
+        self._closing = threading.Event()
+
+    def start_consent_polling(self) -> None:
+        """Keep a short-lived consent cache; network failures immediately disable capture."""
+        def poll():
+            while not self._closing.is_set():
+                try:
+                    preferences = self._post("/preferences", None)
+                    self._hidden = frozenset(preferences.get("hidden_topics", []))
+                    self._consent = frozenset(preferences.get("allowed_surfaces", [])) \
+                        if preferences.get("capture_enabled") else frozenset()
+                    self._consent_at = time.monotonic()
+                except (OSError, ValueError):
+                    self._consent = frozenset()
+                self._closing.wait(1)
+        threading.Thread(target=poll, daemon=True, name="consent").start()
+
+    def capture_policy(self) -> frozenset[str]:
+        """Never capture using stale or unavailable consent."""
+        return self._consent if time.monotonic() - self._consent_at < 2.5 else frozenset()
 
     def send(self, payload: SignalPayload) -> None:
         """Queue one payload for /analyze and return immediately (fire-and-forget).
@@ -94,6 +117,7 @@ class Transport:
         are dropped. Nothing about the payload content is logged.
         """
         body = self._converter.convert(payload)
+        body["topics"] = [topic for topic in body["topics"] if topic not in self._hidden]
         if not check(body):
             self.rejected += 1
             log.warning("dropped a payload that failed the wire-format check")
@@ -101,7 +125,10 @@ class Transport:
         if self._echo:
             print(f"-> {json.dumps(body, separators=(',', ':'))}", flush=True)
         if self._config.backend_url is not None:
-            self._queue.put(body)
+            try:
+                self._queue.put_nowait(body)
+            except queue.Full:
+                self.dropped += 1
 
     def request_experts(self, topics: list[str]) -> list[dict[str, Any]]:
         """Ranked experts for topic tokens from /experts. Blocks; returns [] when unavailable.
@@ -120,6 +147,7 @@ class Transport:
 
     def close(self) -> None:
         """Send what is queued, then stop the background thread."""
+        self._closing.set()
         self._queue.put(None)
         self._thread.join(timeout=2 * (TIMEOUT_S + RETRY_DELAY_S) + 1)
 
@@ -156,15 +184,15 @@ class Transport:
             self._on_doubt(topics)
 
     # THE FUNCTION THAT CROSSES THE NETWORK BOUNDARY (agent side): every request goes through here.
-    def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
+    def _post(self, path: str, body: dict[str, Any] | None) -> dict[str, Any]:
         headers = {"Content-Type": "application/json"}
         if self._config.auth_token:
             headers["Authorization"] = f"Bearer {self._config.auth_token}"
         request = urllib.request.Request(
             f"{self._config.backend_url}{path}",
-            data=json.dumps(body).encode("utf-8"),
+            data=json.dumps(body).encode("utf-8") if body is not None else None,
             headers=headers,
-            method="POST",
+            method="POST" if body is not None else "GET",
         )
         with urllib.request.urlopen(request, timeout=TIMEOUT_S) as response:
             return json.loads(response.read() or b"{}")

@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--surfaces",
         default=",".join(sorted(DEFAULT_ALLOWED_SURFACES)),
-        help=f"comma-separated opted-in surfaces (default: all); known: {sorted(ALL_SURFACES)}",
+        help=f"optional surface restriction; backend consent is always required: {sorted(ALL_SURFACES)}",
     )
     parser.add_argument("--user-id", help="user id sent with every payload (WHOKNOWS_USER_ID)")
     parser.add_argument(
@@ -53,12 +53,14 @@ def main() -> None:
     pipeline = Pipeline(
         RingBuffer(), detector, transport, show_experts=not args.quiet, panel=panel
     )
-    capture = Capture(pipeline, allowed)
+    transport.start_consent_polling()
+    capture = Capture(pipeline, allowed, policy=lambda: transport.capture_policy()
+                      & (allowed or ALL_SURFACES))
     capture.start()
 
     destination = config.backend_url or "nowhere (demo mode, printing only)"
     print(f"whoknows agent for {config.user_id}, sending to {destination}.")
-    print("Type in Teams, Outlook, Gmail, ... Ctrl+Alt+W = who knows? (opens the panel). Ctrl+C to stop.")
+    print("Enable desktop capture in Account settings. Ctrl+Alt+W opens the panel in opted-in fields.")
     try:
         capture.wait()
     except KeyboardInterrupt:

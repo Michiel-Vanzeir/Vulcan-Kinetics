@@ -200,3 +200,13 @@ def test_2000_char_window_runs_under_50_ms():
     for _ in range(runs):
         extract_topics(window)
     assert (time.perf_counter() - started) / runs * 1000 < 50
+
+
+def test_shared_network_catalog_matches_extractor_vocabulary():
+    """The backend and UI must accept precisely the same fixed topic ids as capture."""
+    import json
+    from pathlib import Path
+    from topic_extractor import vocabulary
+    catalog = json.loads((Path(__file__).resolve().parents[2] / "topic-catalog.json")
+                         .read_text("utf-8"))
+    assert {topic["token"] for topic in catalog} == set(vocabulary())

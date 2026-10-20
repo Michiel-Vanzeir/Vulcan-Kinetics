@@ -52,6 +52,33 @@ def test_new_user_document_created_on_first_payload():
     assert "outlook_desktop" in doc["surfaces_seen"]
 
 
+def test_repeated_snapshots_cannot_create_multiple_answer_contexts():
+    flt = build_filter()
+    now = int(time.time() * 1000)
+    payload = _payload(ts=now, topics=["year_end_bonus"], is_reply=True,
+                       prior_message_char_count=50, current_message_char_count=300,
+                       chars_typed=300, fluency_run_seconds=30,
+                       longest_fluency_run_seconds=30)
+    for offset in range(20):
+        flt.process({**payload, "ts": now + offset})
+    entry = flt._store.get("emp_014")["topics"]["year_end_bonus"]
+    assert entry["answering_count"] == 1
+    assert entry["expertise_evidence"] <= 1.001
+    assert not flt.is_expert("emp_014", "year_end_bonus")[0]
+    before = flt._store.get("emp_014")
+    flt.process(payload)
+    assert flt._store.get("emp_014") == before
+
+
+def test_equal_context_ids_from_different_employees_are_isolated():
+    flt = build_filter()
+    now = int(time.time() * 1000)
+    flt.process(_payload(ts=now, user_id="first", topics=["notice_period"], chars_typed=10))
+    flt.process(_payload(ts=now - 1, user_id="second", topics=["country_ES"], chars_typed=20))
+    assert "country_ES" in flt._store.get("second")["topics"]
+    assert "notice_period" not in flt._store.get("second")["topics"]
+
+
 def test_profile_enriched_from_directory():
     directory = {"emp_014": {"job_title": "Payroll consultant",
                              "seniority": "senior", "department": "Payroll BE"}}
@@ -193,7 +220,7 @@ def test_empty_topics_payload_is_buffered_and_resolved():
     out = f.process(_payload(context_id="ctx-later", topics=[],
                              current_message_char_count=80, chars_typed=80))
     assert out is None
-    assert "ctx-later" in f._agg.pending_contexts
+    assert "emp_014:ctx-later" in f._agg.pending_contexts
 
     # Follow-up payload for the SAME context now carries topics.
     out = f.process(_payload(
@@ -204,7 +231,7 @@ def test_empty_topics_payload_is_buffered_and_resolved():
         chars_typed=600, chars_deleted=10,
         fluency_run_seconds=25.0, longest_fluency_run_seconds=40.0,
     ))
-    assert "ctx-later" not in f._agg.pending_contexts
+    assert "emp_014:ctx-later" not in f._agg.pending_contexts
     # The person doc now has expertise accumulators on the topic.
     entry = f._store.get("emp_014")["topics"]["bonus_pc200"]
     assert entry["expertise_evidence"] >= 0.0  # feature path exercised
