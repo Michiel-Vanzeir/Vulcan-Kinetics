@@ -113,9 +113,8 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | 6 | Capture agent surfaces: desktop apps (Teams, Outlook, Word, PowerPoint, OneNote, Slack, Notion) and work web apps in any browser (Gmail, Outlook, Teams, Google Docs, Slack, Notion, Confluence, Jira, SharePoint, Zendesk, Salesforce, ServiceNow) | in progress (Michiel) | Michiel |
 | 7 | Manual hotkey trigger | in progress (Michiel) | Michiel |
 | 8 | Fixed vocabulary of 200 to 500 payroll-domain topic ids | planned | |
-| 9 | Backend `/analyze`: signal payload in, stored as event | planned | |
-| 9b | Backend scoring module: TYPING / HESITATING / STRUGGLING state per text field, from signal payloads | planned | _teammate TBD_ |
-| 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | planned | |
+| 9 | Backend `/analyze`: derived payload in, stored as event | planned | |
+| 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | in progress (Sven) | Sven |
 | 11 | Expertise scoring: fluency, artifact weight, peer vouches, recency decay, knowledge-gap threshold | planned | |
 | 12 | Side panel with expert cards, evidence line, trust signals, "Ask [name]" | planned | |
 | 13 | Consent UI: opt-in per surface, opt-out per topic | planned | |
@@ -300,6 +299,12 @@ best score below threshold      -> "knowledge gap"
 
 Stale knowledge decays automatically through `recency_decay`, which is how stale expertise gets shown as stale.
 
+**Built so far** (`Neo4J-backend/`, Flask + Neo4j): the org hierarchy, the knowledge people
+hold, clients, knowledge revisions, and `GET /who-knows` (semantic search ranked by person).
+This is the substrate for the expertise graph. The whoknows scoring above (fluency, vouches,
+recency decay, knowledge-gap threshold, per-topic opt-out) and document ingestion are **not**
+built yet. Interface and the ingestion plan: `Neo4J-backend/README.md`.
+
 ### Synthetic data
 
 A fictional payroll company of 15 to 20 employees with deliberate expertise patterns: one fresh expert, one stale expert, one opted-out person, one topic with no recent expertise. Every example comes from SD Worx's world (year-end bonuses, PC 200, notice periods per country). The backend is seeded with pre-generated event history and artifacts so the ranking has something to show.
@@ -334,10 +339,8 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
 ## Open decisions
 
-- Agent OS: the spec prefers macOS; the agent is currently built for Windows (`capture-agent/surface_windows.py` is the only OS-specific file). Decide which machine runs the demo.
-- Backend framework: FastAPI or Flask. Storage: Neo4j (as in `Neo4J-backend/`) or plain JSON.
-- Signal list: the "Signal detector output" section is a draft. Reconcile it with the planning doc.
-- Wiring: the capture agent's keyboard hook doesn't feed the signal detector yet, and nothing sends payloads to `/analyze` yet.
+- Agent OS: the spec prefers macOS, but at least one teammate is on Windows. Decide which machine runs the demo.
+- Agent language/runtime: _TBD_.
 - Scoring formula: the product zeroes a score when any factor is 0 (e.g. no vouches yet). Each factor likely needs a floor (e.g. `1 + vouches`). Also decide where "direction of the conversation" enters the formula; it's listed as a signal but isn't a factor yet.
 
 ---
@@ -347,7 +350,7 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 | Person | Area |
 |---|---|
 | Michiel | Capture agent + hesitation detection (features 2 to 7) |
-| _TBD_ | _TBD_ |
+| Sven | Neo4j backend: expertise graph, knowledge, who-knows (features 9 to 11) |
 | _TBD_ | _TBD_ |
 | _TBD_ | _TBD_ |
 
@@ -392,7 +395,4 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Michiel): Added previous-round code in `previous-round/` as read-only reference. Starting fresh, not building on it.
 - 2026-10-20 (Michiel): Finals idea set: whoknows, carried over from the previous round and extended for the SD Worx extra challenge (zero-maintenance trust: expertise from work signals, vouches, automatic decay). Added document writing as a trigger next to replies.
 - 2026-10-20 (Michiel): Pivot from browser-only extension to a local capture agent covering all apps, with the extension as optional companion. Raw text stays on the machine; only derived payloads go to the backend. Hesitation detection is now a per-field state machine. Expertise is now inferred from fluency, answer direction, artifacts and implicit vouches; explicit "vouch on helpful answer" replaced by implicit vouches. Dropped the boundary against inferring expertise from behaviour, since the new design does exactly that, with local-first processing and per-surface consent as the safeguards. Demo: macOS agent watching Teams desktop.
-- 2026-10-20 (Michiel): Capture agent built in Python, Windows first (pynput + UI Automation), because that's the hardware we can test on. Joint committee numbers ("PC 200") are kept when numbers are scrubbed, since they are topics, not personal data.
-- 2026-10-20 (Michiel): Dropped the browser extension: the capture agent is the only client. Agent now also captures browsers, limited to known work web apps (Gmail, Outlook, Teams, ...) by window title, plus more desktop apps (Outlook, Word, PowerPoint, OneNote, Slack, Notion). Sensitive fields (PIN, card, IBAN, address bar, ...), private windows and personal profiles are skipped.
-- 2026-10-20 (Michiel): Split hesitation detection: the agent's signal detector now emits raw counts per trigger (no labels), and the TYPING/HESITATING/STRUGGLING state machine moved to a backend scoring module (teammate). The full signal payload is what crosses the network, so scoring can use signals across sessions and be retuned by replay. Added the "Signal detector output" contract (draft).
-- 2026-10-20 (Michiel): Hedge list grown from about 30 to about 300 phrases and German added (SD Worx operates in DE). Matching is now spelling-tolerant (accents, apostrophes) and checked against neutral business sentences for false hits. Sensitive-field and private-window detection extended to NL/FR/DE labels and browser UIs; more work web apps recognised.
+- 2026-10-20 (Sven): Backend stack decided: Flask + Neo4j (the `Neo4J-backend/` code), dropped the FastAPI-or-Flask / Neo4j-or-JSON open decision. Package manager for the backend is uv. Added a Client node type (projects serve clients, knowledge can be about a client, clients hold nothing) and knowledge revisions (edits stored as a new version that supersedes the old one). Document-to-graph ingestion is still unbuilt; a local-Ollama plan is written up in `Neo4J-backend/README.md`.

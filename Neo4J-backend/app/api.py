@@ -2,7 +2,7 @@ import json
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
 from . import services
-from .models import CreateNodeIn, KnowledgeIn, LinkIn
+from .models import ClientLinkIn, CreateNodeIn, KnowledgeIn, KnowledgeRevisionIn, LinkIn
 
 bp = Blueprint("api", __name__)
 
@@ -24,6 +24,12 @@ def link_node(node_id):
     return jsonify(services.link_node(node_id, body.parent_id)), 201
 
 
+@bp.post("/nodes/<node_id>/clients")
+def link_client(node_id):
+    body = ClientLinkIn.model_validate(request.get_json(force=True))
+    return jsonify(services.link_client(node_id, body.client_id)), 201
+
+
 @bp.get("/nodes/<node_id>/subtree")
 def get_subtree(node_id):
     return jsonify(services.get_subtree(node_id, request.args.get("depth", 3, type=int)))
@@ -33,6 +39,12 @@ def get_subtree(node_id):
 def add_knowledge():
     data = KnowledgeIn.model_validate(request.get_json(force=True))
     return jsonify(services.add_knowledge(data)), 201
+
+
+@bp.post("/knowledge/<knowledge_id>/revisions")
+def revise_knowledge(knowledge_id):
+    data = KnowledgeRevisionIn.model_validate(request.get_json(force=True))
+    return jsonify(services.revise_knowledge(knowledge_id, data)), 201
 
 
 @bp.get("/nodes/<node_id>/knowledge")

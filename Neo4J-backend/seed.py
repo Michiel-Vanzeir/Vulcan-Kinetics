@@ -6,17 +6,18 @@ from app.db import get_driver
 from app.models import CreateNodeIn, KnowledgeIn
 
 
-def node(type_, name, summary, parents=(), **contact):
-    return services.create_node(
-        CreateNodeIn(type=type_, name=name, summary=summary, parent_ids=[p["id"] for p in parents], **contact)
-    )["id"]
+def node(type_, name, summary, parents=(), clients=(), **contact):
+    return services.create_node(CreateNodeIn(
+        type=type_, name=name, summary=summary,
+        parent_ids=[p["id"] for p in parents], client_ids=[c["id"] for c in clients], **contact,
+    ))["id"]
 
 
-def know(title, summary, keywords, importance, when, source_type, uri, holders, supersedes=None):
+def know(title, summary, keywords, importance, when, source_type, uri, holders, supersedes=None, clients=()):
     return services.add_knowledge(KnowledgeIn(
         title=title, summary=summary, keywords=keywords, importance=importance,
         occurred_at=datetime.fromisoformat(when), source_type=source_type, source_uri=uri,
-        holder_ids=holders, supersedes_id=supersedes,
+        holder_ids=holders, client_ids=list(clients), supersedes_id=supersedes,
     ))["id"]
 
 
@@ -29,9 +30,10 @@ def main():
 
     # Wrap ids as dicts so node() can take parents uniformly
     w = lambda i: {"id": i}
+    acme = node("Client", "Acme Retail", "Online retailer; largest merchant on the payments platform.")
     eng = node("Department", "Engineering", "Builds and runs the company's software systems.")
     prod = node("Department", "Product", "Owns product strategy, design and user research.")
-    pay = node("Project", "Payments Platform", "Cross-department project rebuilding payment processing and checkout.", [w(eng), w(prod)])
+    pay = node("Project", "Payments Platform", "Cross-department project rebuilding payment processing and checkout.", [w(eng), w(prod)], [w(acme)])
     mob = node("Project", "Mobile App", "Consumer iOS and Android app.", [w(prod)])
     core = node("Team", "Payments Core", "Backend services for charging, refunds and ledgers.", [w(pay)])
     cux = node("Team", "Checkout UX", "Designs and builds the checkout experience.", [w(pay)])
@@ -54,7 +56,7 @@ def main():
     know("Refund SLA", "Refunds must settle within 5 business days; escalation goes to Payments Core.",
          ["refunds", "sla", "settlement"], 3, "2026-02-01T08:00:00", "document", "docs://refund-sla", [core])
     know("Checkout A/B test: one-page vs multi-step", "One-page checkout raised conversion by 4%; rollout approved.",
-         ["checkout", "ab test", "conversion"], 4, "2026-05-05T13:00:00", "slack", "slack://checkout-ab", [carol])
+         ["checkout", "ab test", "conversion"], 4, "2026-05-05T13:00:00", "slack", "slack://checkout-ab", [carol], clients=[acme])
     know("Apple Pay integration plan", "Apple Pay integrated via payment sheet; needs merchant ID renewal in Q4.",
          ["apple pay", "ios", "merchant id"], 4, "2026-05-28T16:00:00", "email", "mail://apple-pay", [dave])
     know("Mobile payments roadmap", "H2 roadmap: Apple Pay, Google Pay and saved cards across mobile checkout.",
@@ -66,6 +68,7 @@ def main():
 
     print("Seeded. Try: curl 'http://localhost:5000/who-knows?q=fraud model threshold'")
     print("Engineering department id:", eng)
+    print("Acme Retail client id:", acme)
 
 
 if __name__ == "__main__":
