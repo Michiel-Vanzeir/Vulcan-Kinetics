@@ -5,7 +5,12 @@ const PEOPLE = [
   { id: 'sarah', name: 'Sarah De Vos', role: 'Payroll consultant', country: 'BE',
     topic: 'Year-end bonus PC 200', keywords: 'payroll bonus part-time pc 200',
     evidence: 'Calculated year-end bonus for part-time employee',
-    recent: '2 weeks ago', count: 12, vouches: 8 },
+    recent: '2 weeks ago', count: 12, vouches: 8,
+    // Keep the demo explanation aligned with https://www.sfonds200.be/nl/sectorinformatie/verloning/.
+    demoAnswer: "Happy to help. For PC 200, the year-end bonus generally equals one month's "
+      + 'gross salary, provided the eligibility conditions are met. If someone joined during '
+      + 'the year, it can be prorated for the eligible months worked. I would check their '
+      + 'start date and relevant absences before calculating the final amount. (Demo reply)' },
   { id: 'tom', name: 'Tom Janssens', role: 'Senior payroll advisor', country: 'BE',
     topic: 'Year-end bonus PC 200', keywords: 'payroll bonus procedure pc 200',
     evidence: 'Wrote the original year-end bonus procedure',
@@ -123,7 +128,7 @@ export function createPreviewStore({ now = Date.now, schedule = setTimeout } = {
           ? 'Thanks for your help. That makes things clearer. (Demo reply)'
           : person.stale
             ? 'My experience on this is from 2024. Please check with a current expert.'
-            : 'Happy to help. Let us walk through this together. (Demo reply)';
+            : person.demoAnswer || 'Happy to help. Let us walk through this together. (Demo reply)';
         addMessage(person.id, 'you', text,
           { intent: answeringPing ? 'ask' : 'reply', inReplyTo: sent.id, replyToIntent: sent.intent });
       }, 1500);
@@ -155,7 +160,7 @@ export function createPreviewStore({ now = Date.now, schedule = setTimeout } = {
   }
 
   // HACK: Seeded incoming examples demonstrate what the recipient sees on first launch.
-  addMessage('sarah', 'you', 'Could you check a part-time year-end bonus calculation with me?',
+  addMessage('tom', 'you', 'Could you check a part-time year-end bonus calculation with me?',
     { intent: 'ask' });
   pings.push({ id: randomUUID(), senderId: 'lucas', recipientId: 'you', createdAt: now(), read: false });
   return { snapshot, mutate };

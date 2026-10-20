@@ -80,7 +80,7 @@ test('Account opens an inbox; settings are isolated and changes reach the server
   assert.equal(app.document.querySelector('#account-view').hidden, false);
   assert.equal(app.document.querySelector('.list-view').hidden, true);
   assert.ok(descendants(app.document.querySelector('#inbox-items'))
-    .some(node => node.textContent === 'Sarah De Vos'));
+    .some(node => node.textContent === 'Tom Janssens'));
   await app.click('#settings-button');
   assert.equal(app.document.querySelector('#account-view').hidden, true);
   assert.equal(app.document.querySelector('#settings-view').hidden, false);
@@ -173,6 +173,8 @@ test('outgoing help requests show feedback only after a reply', async () => {
 
 test('asking a previously incoming colleague starts an explicit outgoing question', async () => {
   const app = await setup();
+  app.store.mutate('/ui-api/demo-incoming', { personId: 'sarah', kind: 'message' });
+  await vm.runInContext('refresh()', app.context);
   await app.click('.body', 'Open chat with Sarah');
   const chat = app.document.querySelector('.chat-view');
   const composer = descendants(chat).find(node => node.className === 'chat-composer');

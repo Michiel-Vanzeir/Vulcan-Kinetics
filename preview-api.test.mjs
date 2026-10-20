@@ -8,6 +8,8 @@ test('incoming examples belong to the independent account, not a colleague', () 
   const state = createPreviewStore().snapshot();
   assert.equal(state.account.id, 'you');
   assert.equal(state.messages[0].recipientId, 'you');
+  assert.equal(state.messages[0].senderId, 'tom');
+  assert.notEqual(state.messages[0].senderId, state.people[0].id);
   assert.equal(state.pings[0].recipientId, 'you');
   assert.equal(state.people.find(person => person.id === 'sarah').pingable, true);
 });
@@ -78,6 +80,7 @@ test('a ping introduces the question before a later answer receives thanks', () 
 test('the same colleague can ask for help and later answer a question from you', () => {
   const replies = [];
   const store = createPreviewStore({ schedule: callback => replies.push(callback) });
+  store.mutate('/ui-api/demo-incoming', { personId: 'sarah', kind: 'message' });
   store.mutate('/ui-api/messages', { personId: 'sarah', text: 'Here is my answer.', intent: 'reply' });
   store.mutate('/ui-api/messages', { personId: 'sarah', text: 'Now can you help me?', intent: 'ask' });
   replies.shift()();
@@ -85,6 +88,17 @@ test('the same colleague can ask for help and later answer a question from you',
   replies.shift()();
   assert.match(store.snapshot().messages.at(-1).text, /Happy to help/);
   assert.equal(store.snapshot().messages.at(-1).replyToIntent, 'ask');
+});
+
+test('Sarah explains the PC 200 bonus when asked for help', () => {
+  const replies = [];
+  const store = createPreviewStore({ schedule: callback => replies.push(callback) });
+  store.mutate('/ui-api/messages', { personId: 'sarah', text: 'How does PC 200 work?', intent: 'ask' });
+  replies.shift()();
+  const answer = store.snapshot().messages.at(-1).text;
+  assert.match(answer, /one month's gross salary/);
+  assert.match(answer, /eligibility conditions/);
+  assert.match(answer, /prorated/);
 });
 
 test('new incoming pings are rejected for opt-out and DND without changing the inbox', () => {
