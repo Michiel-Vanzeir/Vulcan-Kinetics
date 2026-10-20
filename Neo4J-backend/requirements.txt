@@ -1,0 +1,4 @@
+flask>=3.0
+neo4j>=5.18
+pydantic>=2.6
+python-dotenv>=1.0

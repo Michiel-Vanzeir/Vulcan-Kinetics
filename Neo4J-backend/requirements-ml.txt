@@ -1,0 +1,2 @@
+# Real semantic embeddings (pulls in torch, large download)
+sentence-transformers>=2.7
