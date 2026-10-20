@@ -31,7 +31,9 @@ def main() -> None:
         help="backend base URL (WHOKNOWS_BACKEND_URL); without it nothing leaves the machine",
     )
     parser.add_argument("--quiet", action="store_true", help="don't print payloads")
-    parser.add_argument("--no-panel", action="store_true", help="don't open the popup on Ctrl+Alt+W")
+    parser.add_argument(
+        "--no-panel", action="store_true", help="don't open the popup (Ctrl+Alt+W or doubt)"
+    )
     args = parser.parse_args()
     allowed = frozenset(s.strip() for s in args.surfaces.split(",") if s.strip())
     unknown = allowed - ALL_SURFACES
@@ -44,9 +46,10 @@ def main() -> None:
     if args.backend_url:
         config = replace(config, backend_url=args.backend_url.rstrip("/"))
 
-    transport = Transport(config, echo=not args.quiet)
-    detector = SignalDetector(DetectorConfig(user_id=config.user_id))
     panel = None if args.no_panel else PanelWindow()
+    on_doubt = panel.open_unless_shown if panel is not None else None
+    transport = Transport(config, echo=not args.quiet, on_doubt=on_doubt)
+    detector = SignalDetector(DetectorConfig(user_id=config.user_id))
     pipeline = Pipeline(
         RingBuffer(), detector, transport, show_experts=not args.quiet, panel=panel
     )

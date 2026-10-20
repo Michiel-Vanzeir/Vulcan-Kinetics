@@ -20,6 +20,7 @@ class FakeBackend:
         self.statuses: list[int] = []
         self.delay_s = 0.0
         self.experts = [{"user_id": "emp_021", "topic": "notice_period", "score": 0.81}]
+        self.analysis: dict = {"accepted": True}
         backend = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -30,7 +31,7 @@ class FakeBackend:
                 )
                 time.sleep(backend.delay_s)
                 status = backend.statuses.pop(0) if backend.statuses else 200
-                reply = {"experts": backend.experts} if self.path == "/experts" else {"accepted": True}
+                reply = {"experts": backend.experts} if self.path == "/experts" else backend.analysis
                 data = json.dumps(reply).encode()
                 self.send_response(status)
                 self.send_header("Content-Length", str(len(data)))
@@ -131,6 +132,27 @@ def test_send_does_not_block_on_a_slow_backend(backend):
         transport.send(make_payload())
     assert time.perf_counter() - started < 0.2
     transport.close()
+
+
+def test_doubt_alert_hands_vocabulary_topics_to_callback(backend):
+    backend.analysis = {
+        "accepted": True,
+        "doubt_alert": {"doubt": 0.7, "topics": ["notice_period", "not a token"]},
+    }
+    doubts: list[list[str]] = []
+    transport = Transport(config_for(backend), on_doubt=doubts.append)
+    transport.send(make_payload())
+    transport.close()
+    assert doubts == [["notice_period"]]
+
+
+def test_no_doubt_alert_no_callback(backend):
+    backend.analysis = {"accepted": True, "tip": None, "doubt_alert": None}
+    doubts: list[list[str]] = []
+    transport = Transport(config_for(backend), on_doubt=doubts.append)
+    transport.send(make_payload())
+    transport.close()
+    assert doubts == []
 
 
 def test_demo_mode_sends_nothing(backend):

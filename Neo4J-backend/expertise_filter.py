@@ -48,6 +48,12 @@ CONFIG: dict[str, float] = {
     "paste_discount_at_ratio": 0.5,            # ratio where confidence halves
     "paste_hard_cap_ratio": 0.6,               # above this: evidence is pasted
 
+    # Interaction edge weights emitted for the people-network graph. These line
+    # up with app/network.py's EVENT_WEIGHT so the graph gets strong signal from
+    # the compose context but less than a resolved ticket.
+    "edge_compose_answer_weight": 0.7,         # answerer -> asker, scaled by conf
+    "edge_asked_about_weight": 0.3,            # asker -> each participant
+
     # Doubt (person is stuck on the topic -> a candidate to be helped).
     "doubt_hedge_weight": 0.08,                # per hedge
     "doubt_placeholder_weight": 0.15,
@@ -69,6 +75,12 @@ CONFIG: dict[str, float] = {
     "high_confidence_threshold": 0.65,
     "high_doubt_threshold": 0.55,
     "expert_min_score": 0.6,
+
+    # Upstream push: when doubt crosses this threshold we send a signal back to
+    # the capture agent asking it to open the side panel. The cooldown keeps
+    # one hesitant draft from firing on every keystroke payload.
+    "push_doubt_threshold": 0.55,
+    "push_cooldown_ms": 15_000,
 
     # Composite weights for is_expert().
     "expert_profile_weight": 0.35,
@@ -307,6 +319,29 @@ def doubt_score(p: SignalPayload) -> float:
     return _clip(score)
 
 
+def _doubt_reasons(p: SignalPayload) -> list[str]:
+    """Human-readable list of why we think this person is doubting.
+    Ordered strongest-first so the UI can show just the top one or two."""
+    reasons: list[str] = []
+    if p.hedge_words >= 2:
+        reasons.append(f"{p.hedge_words} hedging phrases")
+    if p.placeholders >= 1:
+        reasons.append(f"{p.placeholders} placeholder{'s' if p.placeholders > 1 else ''}")
+    if p.question_marks_written >= 1 and not p.is_reply:
+        reasons.append(f"{p.question_marks_written} question mark"
+                       f"{'s' if p.question_marks_written > 1 else ''}")
+    if p.long_pauses >= 2:
+        reasons.append(f"{p.long_pauses} long pauses")
+    if p.deletion_bursts >= 2:
+        reasons.append(f"{p.deletion_bursts} deletion bursts")
+    if p.rewrite_loops >= 1:
+        reasons.append(f"{p.rewrite_loops} rewrite loop"
+                       f"{'s' if p.rewrite_loops > 1 else ''}")
+    if p.window_switches_away >= 2:
+        reasons.append(f"switched away {p.window_switches_away} times")
+    return reasons[:3]  # one or two lands in the UI, three is the hard cap
+
+
 def direction(p: SignalPayload) -> str:
     cfg = CONFIG
     cur = p.current_message_char_count
@@ -451,13 +486,34 @@ class ExpertiseFilter:
     """
 
     def __init__(self, store: PersonStore,
-                 directory: dict[str, dict[str, Any]] | None = None) -> None:
+                 directory: dict[str, dict[str, Any]] | None = None,
+                 on_doubt_push: "callable | None" = None) -> None:
+        """`on_doubt_push`, if given, is called with the doubt_alert dict the
+        moment doubt crosses the push threshold for a context (respecting the
+        per-context cooldown). It's a one-way push to upstream: the capture
+        agent / content script uses it to open the side panel immediately.
+        """
         self._store = store
         self._directory = directory or {}
         self._agg = ContextAggregator()
+        self._on_doubt_push = on_doubt_push
+        # Last push per context, so one draft doesn't fire on every keystroke.
+        self._last_push_ms: dict[str, int] = {}
 
     # ---- public API --------------------------------------------------------
-    def process(self, payload_dict: dict[str, Any]) -> dict[str, Any] | None:
+    def process(self, payload_dict: dict[str, Any],
+                participants: list[str] | None = None) -> dict[str, Any] | None:
+        """Consume one capture-agent payload.
+
+        `participants` is the counterpart user_ids in the current thread or
+        channel (e.g. the Outlook thread's other recipients). When supplied,
+        the result also carries interaction events for the people-network
+        graph. When None, only the routing tip is produced.
+
+        Returns None when nothing is routable yet (topics not in, no qualifying
+        expert, no participants to attribute edges to). Otherwise returns
+        {"tip": tip_or_none, "interactions": [...]}.
+        """
         payload = SignalPayload.from_dict(payload_dict)
         snap = self._agg.ingest(payload)
         baseline = self._agg.baseline_for(payload.user_id)
@@ -472,12 +528,18 @@ class ExpertiseFilter:
         # Always update the person document - we track everyone.
         self._touch_person(snap, scores)
 
+        # Doubt push can fire before topics are known - the panel just needs
+        # to open; whichever topic surfaces later refines what it offers.
+        doubt_alert = self._doubt_alert(snap, scores)
+
         if not snap.topics:
             # Topics not available yet: buffer the latest scores so when a
             # follow-up payload for this context_id arrives with topics we can
             # emit downstream events backed by the full context history.
             self._agg.buffer_pending(snap.context_id, scores)
-            return None
+            if doubt_alert is None:
+                return None
+            return {"tip": None, "interactions": [], "doubt_alert": doubt_alert}
 
         # Topics arrived; drop any buffered scores for this context now that the
         # live snapshot represents them.
@@ -490,15 +552,111 @@ class ExpertiseFilter:
             if is_exp and (best is None or score > best["score"]):
                 best = {
                     "author": snap.user_id,
-                    # TODO: payload carries only one user_id (the author). A
-                    # separate participant/thread mapping is needed to resolve
-                    # the counterpart; keep recipient=None until that is wired.
-                    "recipient": None,
+                    "recipient": self._primary_counterpart(participants, snap.user_id),
                     "topic": topic,
                     "score": score,
                     "reasons": reasons,
                 }
-        return best
+
+        interactions = self._build_interactions(snap, scores, participants)
+        if best is None and not interactions and doubt_alert is None:
+            return None
+        return {"tip": best, "interactions": interactions,
+                "doubt_alert": doubt_alert}
+
+    def _doubt_alert(self, snap: SignalPayload,
+                     scores: dict[str, Any]) -> dict[str, Any] | None:
+        """Produce the upstream push signal: "this person is having doubts".
+
+        Fires only when doubt crosses the configured push threshold, respects
+        a per-context cooldown so one hesitant draft doesn't spam the panel,
+        and includes the small set of human-readable reasons the pitch demo
+        shows under the trigger. If a push callback was wired in, call it now.
+        """
+        cfg = CONFIG
+        if scores["doubt"] < cfg["push_doubt_threshold"]:
+            return None
+        last = self._last_push_ms.get(snap.context_id, 0)
+        if snap.ts - last < cfg["push_cooldown_ms"]:
+            return None
+        self._last_push_ms[snap.context_id] = snap.ts
+
+        alert = {
+            "user_id": snap.user_id,
+            "context_id": snap.context_id,
+            "surface": snap.surface,
+            "ts": snap.ts,
+            "doubt": round(scores["doubt"], 3),
+            "topics": list(snap.topics),             # may be empty
+            "direction": scores["direction"],
+            "reasons": _doubt_reasons(snap),
+        }
+        if self._on_doubt_push is not None:
+            try:
+                self._on_doubt_push(alert)
+            except Exception as e:
+                # The push is a hint, not a hard dependency; keep processing.
+                alert["push_error"] = type(e).__name__
+        return alert
+
+    def _primary_counterpart(self, participants: list[str] | None,
+                             author: str) -> str | None:
+        """Pick a single recipient id for the UI card. For a 1:1 thread this is
+        the only other participant; for a group we just take the first one and
+        emit edges toward all of them (see `_build_interactions`)."""
+        if not participants:
+            return None
+        others = [p for p in participants if p != author]
+        return others[0] if others else None
+
+    def _build_interactions(self, snap: SignalPayload, scores: dict[str, Any],
+                            participants: list[str] | None) -> list[dict[str, Any]]:
+        """Shape interactions so a people-network consumer (see app/network.py)
+        can turn them straight into weighted edges. One edge per counterpart,
+        per topic. Nothing is emitted when `participants` is missing - we won't
+        invent edges toward an unknown recipient.
+        """
+        if not participants:
+            return []
+        others = [p for p in participants if p != snap.user_id]
+        if not others:
+            return []
+
+        cfg = CONFIG
+        events: list[dict[str, Any]] = []
+        base = {
+            "source": "compose",
+            "source_id": f"{snap.context_id}:{snap.ts}",
+            "ts": snap.ts,
+            "surface": snap.surface,
+            "topics": list(snap.topics),
+        }
+
+        if (scores["direction"] == "answering"
+                and scores["confidence"] >= cfg["high_confidence_threshold"]
+                and scores["paste_ratio"] < cfg["paste_hard_cap_ratio"]):
+            weight = cfg["edge_compose_answer_weight"] * scores["confidence"]
+            for recipient in others:
+                events.append({
+                    **base,
+                    "giver": snap.user_id,
+                    "receiver": recipient,
+                    "kind": "compose_answer",
+                    "weight": round(weight, 3),
+                })
+
+        if scores["direction"] == "asking":
+            weight = cfg["edge_asked_about_weight"]
+            for other in others:
+                events.append({
+                    **base,
+                    "giver": other,       # others are presumed to know
+                    "receiver": snap.user_id,
+                    "kind": "asked_about",
+                    "weight": weight,
+                })
+
+        return events
 
     def is_expert(self, user_id: str, topic: str) -> tuple[bool, float, list[str]]:
         """Decide whether `user_id` should be routed as an expert on `topic`.

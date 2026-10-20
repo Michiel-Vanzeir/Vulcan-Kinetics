@@ -35,7 +35,9 @@ leaves the machine. Ctrl+Alt+W also asks the backend who knows the field's topic
 
 The popup is Thomas's `../people-panel.html` in Edge or Chrome app mode (own window, separate browser
 profile). Try it without the agent: `.venv/Scripts/python -m agent.panel notice_period country_BE`.
-`--no-panel` turns it off.
+The panel also opens by itself when the backend answers a payload with a `doubt_alert` (the
+expertise filter decided you are struggling with this draft), unless a panel is already open.
+`--no-panel` turns both off.
 
 Browser tabs are captured only when the window title shows a known work web app.
 Private windows, personal profiles, the address bar, password fields and other
@@ -65,7 +67,7 @@ keyboard hook -> focused field (UI Automation) -> pipeline
 | `agent/pipeline.py` | Turns keys into `KeyEvent`s for the signal detector, handles focus switches and send/clear, adds topics to each payload (`extract_topics()`), hands it to `Transport.send()`. |
 | `agent/backend_payload.py` | Converts detector payloads into the backend's wire format (counts cumulative per context). |
 | `agent/transport.py` | **The only network path.** `send()` converts, checks (known keys, no free text, vocabulary topics only) and POSTs to `/analyze` on a background thread, one retry. `request_experts()` asks `/experts`. `_post()` is the one function that crosses the network. |
-| `agent/panel.py` | Opens the people panel as a popup window on Ctrl+Alt+W, with the field's topic tokens in the URL. |
+| `agent/panel.py` | Opens the people panel as a popup window on Ctrl+Alt+W or a doubt alert, with the field's topic tokens in the URL. |
 | `agent/config.py` (top) | `load_config()`: backend URL, user id and auth token from the environment or `.env`. |
 | `agent/surfaces.py` | OS-independent rules: which app or browser tab is a work surface, and which fields are sensitive. |
 | `agent/surface_windows.py` | Focused app (foreground process + window title) and text field (UI Automation). Clipboard length for pastes. The only OS-specific file. |

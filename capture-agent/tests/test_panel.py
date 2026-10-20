@@ -99,3 +99,14 @@ def test_open_starts_browser_in_app_mode_and_closes_previous(monkeypatch):
     assert "--window-size=500,860" in args
     assert not any(a.startswith("--window-position") for a in args)
     assert any(a.startswith("--user-data-dir=") for a in args)
+
+
+@pytest.mark.parametrize(("open_windows", "launches"), [([], 1), ([111], 0)])
+def test_doubt_opens_panel_only_when_none_is_shown(monkeypatch, open_windows, launches):
+    launched: list[list[str]] = []
+    monkeypatch.setattr(panel_module.subprocess, "Popen", lambda args, **kw: launched.append(args))
+    monkeypatch.setattr(panel_module, "_place_when_ready", lambda anchor: None)
+    monkeypatch.setattr(panel_module, "_forget_saved_placement", lambda: None)
+    monkeypatch.setattr(panel_module, "_find_panel_windows", lambda: list(open_windows))
+    PanelWindow(browser="C:/browser.exe").open_unless_shown(["notice_period"])
+    assert len(launched) == launches

@@ -167,9 +167,21 @@ class PanelWindow:
     def __init__(self, browser: str | None = None):
         self._browser = browser or find_browser()
         self._placer: threading.Thread | None = None
+        # The hotkey (capture thread) and doubt alerts (transport thread) can both open it.
+        self._lock = threading.Lock()
 
     def open(self, topics: list[str]) -> None:
         """Show the panel, pre-filtered on these topic tokens, on the user's current monitor."""
+        with self._lock:
+            self._open(topics)
+
+    def open_unless_shown(self, topics: list[str]) -> None:
+        """Open the panel for a doubt alert, but never replace one the user already has open."""
+        with self._lock:
+            if not _find_panel_windows():
+                self._open(topics)
+
+    def _open(self, topics: list[str]) -> None:
         url = panel_url(topics)
         anchor = _user32.GetForegroundWindow() or None
         self.close()
