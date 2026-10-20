@@ -21,6 +21,12 @@ Search by name, role or topic, such as Sarah, bonus, notice or payroll.
 The information icon switches a profile card to its evidence view; the back arrow restores
 its activity statistics. **Cases handled** is a synthetic fixture count in `preview-api.mjs`.
 
+With `?popup=1` the panel fills its window and **Close**/Esc close the window: the capture agent
+opens it this way on **Ctrl+Alt+W** and when the backend reports doubt (see
+`capture-agent/README.md`), so keep this server running during the demo.
+`?topics=notice_period,country_BE` pre-fills the search from the agent's topic tokens
+(mapping in `TOPIC_SEARCH` in `people-panel.js`).
+
 **Ask** opens a full conversation. **Send message** stores a message on the local UI server,
 and a fictional colleague replies after 1.5 seconds. You can send follow-up messages.
 Opening a chat from a profile card sends a question; opening an incoming question or ping

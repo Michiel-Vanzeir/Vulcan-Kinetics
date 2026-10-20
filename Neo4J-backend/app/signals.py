@@ -3,7 +3,10 @@
 POST /analyze
     Body: one capture-agent payload (SignalPayloadIn below). Counts, flags, ids and
     topic tokens only.
-    200 -> {"accepted": true, "tip": null | {"author", "recipient", "topic", "score", "reasons"}}
+    200 -> {"accepted": true, "tip": null | {"author", "recipient", "topic", "score", "reasons"},
+            "doubt_alert": null | {"user_id", "context_id", "surface", "ts", "doubt", "topics",
+                                   "direction", "reasons"}}
+    A doubt_alert means the author is struggling with this draft; the agent opens the panel.
     400 -> {"error": "validation", "details": [...]}
 
 POST /experts
@@ -148,10 +151,12 @@ def analyze():
     never the payload.
     """
     payload = SignalPayloadIn.model_validate(request.get_json(force=True, silent=True) or {})
-    tip = _on_filter_thread(_process, payload.model_dump())
-    log.info("received payload for %s: trigger=%s, %d topics, tip=%s",
-             payload.user_id, payload.trigger, len(payload.topics), tip is not None)
-    return jsonify({"accepted": True, "tip": tip})
+    result = _on_filter_thread(_process, payload.model_dump()) or {}
+    tip, doubt_alert = result.get("tip"), result.get("doubt_alert")
+    log.info("received payload for %s: trigger=%s, %d topics, tip=%s, doubt=%s",
+             payload.user_id, payload.trigger, len(payload.topics), tip is not None,
+             doubt_alert is not None)
+    return jsonify({"accepted": True, "tip": tip, "doubt_alert": doubt_alert})
 
 
 @bp.post("/experts")

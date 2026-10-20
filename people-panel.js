@@ -12,6 +12,19 @@ const drafts = new Map();
 const results = document.querySelector('.body');
 const searchInput = document.querySelector('#people-search');
 
+// Popup mode: the capture agent opens this page as its own small window on Ctrl+Alt+W or when
+// the backend reports doubt, with ?popup=1&topics=notice_period,country_ES (topic tokens,
+// never typed text).
+const pageParams = new URLSearchParams(location.search);
+const POPUP_MODE = pageParams.has('popup');
+// Topic tokens -> a search the synthetic fixtures understand, most specific topic first.
+const TOPIC_SEARCH = [
+  ['notice_period', 'notice'], ['year_end_bonus', 'bonus'], ['dismissal', 'termination'],
+  ['payslip', 'payroll'], ['PC_200', 'pc 200'], ['country_FR', 'france'],
+  ['country_BE', 'belgium'],
+];
+if (POPUP_MODE) document.documentElement.classList.add('popup');
+
 /** Show actionable API errors without losing the current screen or message draft. */
 function showError(error) {
   const output = document.querySelector('#ui-error');
@@ -409,6 +422,10 @@ function renderMessages() {
 
 /** Close and reopen the panel without discarding server state or local drafts. */
 function setPanelOpen(open) {
+  if (!open && POPUP_MODE) {
+    window.close();
+    return;
+  }
   document.querySelector('.panel').hidden = !open;
   document.querySelector('#reopen').hidden = open;
   if (open) document.querySelector('#account-button').focus();
@@ -447,6 +464,10 @@ document.addEventListener('keydown', event => {
   else if (screen === 'chat') navigate(chatReturn);
   else setPanelOpen(false);
 });
+const pageTopics = (pageParams.get('topics') || '').split(',');
+const topicSearch = TOPIC_SEARCH.find(([token]) => pageTopics.includes(token));
+if (topicSearch) searchInput.value = topicSearch[1];
+if (POPUP_MODE) searchInput.focus();
 results.append(element('p', 'muted', 'Loading colleagues...'));
 refresh();
 setInterval(refresh, 2000);

@@ -14,6 +14,7 @@ from dataclasses import replace
 from enum import StrEnum
 
 from agent.buffer import BACKSPACE, NEWLINE, KeyEntry, RingBuffer
+from agent.panel import PanelWindow
 from agent.surfaces import Surface
 from agent.transport import Transport
 from signal_detector import KeyEvent, KeyKind, SignalDetector, SignalPayload
@@ -49,11 +50,13 @@ class Pipeline:
         detector: SignalDetector,
         transport: Transport,
         show_experts: bool = False,
+        panel: PanelWindow | None = None,
     ):
         self._buffer = buffer
         self._detector = detector
         self._transport = transport
         self._show_experts = show_experts
+        self._panel = panel
         self._focused: Surface | None = None
         self._surface_ids: dict[str, str] = {}
         self.payloads = 0
@@ -70,6 +73,9 @@ class Pipeline:
         target = surface if surface is not None and not surface.is_sensitive else None
         self._switch_focus(target, ts_ms)
         if target is None:
+            if action == Action.MANUAL and self._panel is not None:
+                # The hotkey also works outside captured fields, just without topics.
+                self._panel.open([])
             return
 
         if action == Action.ENTER:
@@ -81,8 +87,11 @@ class Pipeline:
             self._buffer.clear(target.id)
         elif action == Action.MANUAL:
             payload = self._emit(self._detector.manual_trigger(context_id(target.id)))
-            if payload is not None and self._show_experts:
-                self._ask_experts(list(payload.topics))
+            topics = list(payload.topics) if payload is not None else []
+            if self._panel is not None:
+                self._panel.open(topics)
+            if self._show_experts:
+                self._ask_experts(topics)
         elif action == Action.CHAR and char:
             self._buffer.append(KeyEntry(char=char, ts=ts_ms, surface_id=target.id))
             self._emit(self._event(target, KeyKind.CHAR, ts_ms, char=char))

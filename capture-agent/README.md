@@ -31,7 +31,14 @@ leaves the machine. Ctrl+Alt+W also asks the backend who knows the field's topic
 |---|---|
 | Enter | sends the message in chat apps (Teams, Slack, Google Chat); new line elsewhere |
 | Ctrl+Enter | sends the message anywhere |
-| Ctrl+Alt+W | "who knows?": emit a payload for the current field now |
+| Ctrl+Alt+W | "who knows?": opens the people panel as a popup (top right), pre-filtered on the field's topics, and emits a payload for the field now. Works anywhere; outside captured fields the panel opens unfiltered. |
+
+The popup is Thomas's `../people-panel.html` in Edge or Chrome app mode (own window, separate browser
+profile), served by the preview server: start it first with `node preview-server.mjs` in the repo
+root (see `../README.md`), or the panel shows no colleagues. Try it without the agent: `.venv/Scripts/python -m agent.panel notice_period country_BE`.
+The panel also opens by itself when the backend answers a payload with a `doubt_alert` (the
+expertise filter decided you are struggling with this draft), unless a panel is already open.
+`--no-panel` turns both off.
 
 Browser tabs are captured only when the window title shows a known work web app.
 Private windows, personal profiles, the address bar, password fields and other
@@ -61,6 +68,7 @@ keyboard hook -> focused field (UI Automation) -> pipeline
 | `agent/pipeline.py` | Turns keys into `KeyEvent`s for the signal detector, handles focus switches and send/clear, adds topics to each payload (`extract_topics()`), hands it to `Transport.send()`. |
 | `agent/backend_payload.py` | Converts detector payloads into the backend's wire format (counts cumulative per context). |
 | `agent/transport.py` | **The only network path.** `send()` converts, checks (known keys, no free text, vocabulary topics only) and POSTs to `/analyze` on a background thread, one retry. `request_experts()` asks `/experts`. `_post()` is the one function that crosses the network. |
+| `agent/panel.py` | Opens the people panel as a popup window on Ctrl+Alt+W or a doubt alert, with the field's topic tokens in the URL. |
 | `agent/config.py` (top) | `load_config()`: backend URL, user id and auth token from the environment or `.env`. |
 | `agent/surfaces.py` | OS-independent rules: which app or browser tab is a work surface, and which fields are sensitive. |
 | `agent/surface_windows.py` | Focused app (foreground process + window title) and text field (UI Automation). Clipboard length for pastes. The only OS-specific file. |
