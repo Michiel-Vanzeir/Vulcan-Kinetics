@@ -12,6 +12,7 @@ const drafts = new Map();
 const results = document.querySelector('.body');
 const searchInput = document.querySelector('#people-search');
 let catalog = [];
+let topicLabels = new Map();
 let capturePreferences = null;
 let rankingKey = '';
 let ranking = null;
@@ -31,7 +32,6 @@ function hasPhrase(text, phrase) {
 // never typed text).
 const pageParams = new URLSearchParams(location.search);
 const POPUP_MODE = pageParams.has('popup');
-// Topic tokens -> a search the synthetic fixtures understand, most specific topic first.
 if (POPUP_MODE) document.documentElement.classList.add('popup');
 
 /** Show actionable API errors without losing the current screen or message draft. */
@@ -183,7 +183,7 @@ function renderPeople() {
   const scrollTop = results.scrollTop;
   results.replaceChildren();
   const query = searchInput.value.toLowerCase().trim();
-  const tokens = [...new Set([
+  const topicIds = [...new Set([
     ...(usePageTopics ? (pageParams.get('topics') || '').split(',').filter(Boolean) : []),
     ...catalog.filter(topic => query && [topic.token, topic.label, ...topic.aliases]
       .some(alias => hasPhrase(query, alias))).map(topic => topic.token),
@@ -191,8 +191,8 @@ function renderPeople() {
       .filter(([term]) => query.split(/\W+/).includes(term)).map(([, token]) => token),
     ...(query.match(/\bpc[ _]?(\d{3})\b/g) || []).map(value => `PC_${value.slice(-3)}`),
   ])];
-  if (tokens.length) {
-    renderRankings(tokens);
+  if (topicIds.length) {
+    renderRankings(topicIds);
     return;
   }
   results.append(element('p', 'muted', 'Demo directory · search a topic to load backend matches.'));
@@ -209,14 +209,14 @@ function renderPeople() {
 }
 
 /** Preserve every requested topic and show backend gaps without inventing a fallback match. */
-function renderRankings(tokens) {
-  const key = JSON.stringify(tokens.sort());
+function renderRankings(topicIds) {
+  const key = JSON.stringify(topicIds.sort());
   if (rankingKey !== key) {
     rankingKey = key;
     ranking = null;
     rankingError = '';
     const sequence = ++rankingSequence;
-    request('/experts', { topics: tokens, limit: 50 }).then(value => {
+    request('/experts', { topics: topicIds, limit: 50 }).then(value => {
       if (sequence !== rankingSequence) return;
       ranking = value;
       if (screen === 'people') renderPeople();
@@ -230,10 +230,10 @@ function renderRankings(tokens) {
     results.append(element('p', 'gap', rankingError || 'Loading backend matches…'));
     return;
   }
-  for (const token of tokens) {
-    const label = catalog.find(topic => topic.token === token)?.label || token;
+  for (const topicId of topicIds) {
+    const label = topicLabels.get(topicId) || topicId;
     results.append(element('div', 'topic', label));
-    const experts = ranking.experts.filter(expert => expert.topic === token);
+    const experts = ranking.experts.filter(expert => expert.topic === topicId);
     if (!experts.length) results.append(element('p', 'gap', 'Knowledge gap: no qualifying recent signals.'));
     for (const [index, expert] of experts.entries()) {
       const person = state.people.find(candidate => candidate.id === DIRECTORY_IDS[expert.user_id]);
@@ -572,6 +572,8 @@ setInterval(refresh, 2000);
 async function loadCapture() {
   try {
     catalog = await (await fetch('/topic-catalog.json')).json();
+    // These are public vocabulary identifiers; credentials never enter the browser state.
+    topicLabels = new Map(catalog.map(topic => [topic.token, topic.label]));
     const select = document.querySelector('#hidden-topics');
     select.replaceChildren(...catalog.map(topic => {
       const option = element('option', '', topic.label);

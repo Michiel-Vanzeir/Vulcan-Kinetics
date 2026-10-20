@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.10, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -455,6 +455,8 @@ dependencies = [
 [package.optional-dependencies]
 ml = [
     { name = "sentence-transformers" },
+    { name = "tokenizers" },
+    { name = "transformers" },
 ]
 
 [package.metadata]
@@ -462,8 +464,10 @@ requires-dist = [
     { name = "flask", specifier = ">=3.0" },
     { name = "neo4j", specifier = ">=5.18" },
     { name = "pydantic", specifier = ">=2.6" },
-    { name = "python-dotenv", specifier = ">=1.0" },
-    { name = "sentence-transformers", marker = "extra == 'ml'", specifier = ">=2.7" },
+    { name = "python-dotenv", specifier = ">=1.2.4,<2" },
+    { name = "sentence-transformers", marker = "extra == 'ml'", specifier = ">=6.1.0,<7" },
+    { name = "tokenizers", marker = "extra == 'ml'", specifier = ">=0.23.3,<0.24" },
+    { name = "transformers", marker = "extra == 'ml'", specifier = ">=5.20.2,<6" },
 ]
 provides-extras = ["ml"]
 

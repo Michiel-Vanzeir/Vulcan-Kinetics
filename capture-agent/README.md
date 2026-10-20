@@ -43,6 +43,10 @@ expertise filter decided you are struggling with this draft), unless a panel is 
 
 Capture starts off. In Account > Settings, select a desktop app and enable detection.
 The agent polls persisted backend consent and stops on expired consent or network failure.
+Backend URLs must be local HTTP(S) origins (`127.0.0.1`, `localhost` or `[::1]`), with an
+optional port. External hosts, URL credentials, paths, queries and fragments are rejected.
+Redirects and environment proxies cannot reroute agent requests. See
+[`../docs/runtime-security.md`](../docs/runtime-security.md) for the boundary and tests.
 Browser capture is disabled: page titles cannot prove a trusted origin or work profile.
 Unresolved and sensitive fields are dropped before queueing; focus is checked again before
 processing. Slow accessibility providers cause dropped keys. See `../docs/trust-validation.md`.

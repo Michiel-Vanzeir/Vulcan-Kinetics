@@ -10,7 +10,8 @@ def _st_embed(text: str) -> list[float]:
     global _model
     if _model is None:
         from sentence_transformers import SentenceTransformer
-        _model = SentenceTransformer(config.EMBED_MODEL)
+        _model = SentenceTransformer(config.EMBED_MODEL, trust_remote_code=False,
+                                     model_kwargs={"use_safetensors": True})
     return _model.encode(text, normalize_embeddings=True).tolist()
 
 

@@ -69,7 +69,7 @@ establish knowledge of Spanish employment rules.
 
 **Tests:** `uv run --with pytest pytest` in `Neo4J-backend/`, `.venv/Scripts/python -m pytest`
 in `capture-agent/`, and
-`node --test preview-api.test.mjs preview-ui.test.mjs` in the repo root.
+`node --test preview-server.test.mjs preview-api.test.mjs preview-ui.test.mjs` in the repo root.
 
 ## Local popup preview
 

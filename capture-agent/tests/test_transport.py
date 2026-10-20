@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from agent.config import AgentConfig, load_config
-from agent.transport import Transport
+from agent.transport import Transport, backend_address
 from conftest import make_payload
 
 
@@ -21,6 +21,7 @@ class FakeBackend:
         self.delay_s = 0.0
         self.experts = [{"user_id": "emp_021", "topic": "notice_period", "score": 0.81}]
         self.analysis: dict = {"accepted": True}
+        self.redirect_to = None
         backend = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -34,6 +35,8 @@ class FakeBackend:
                 reply = {"experts": backend.experts} if self.path == "/experts" else backend.analysis
                 data = json.dumps(reply).encode()
                 self.send_response(status)
+                if backend.redirect_to:
+                    self.send_header("Location", backend.redirect_to)
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -200,3 +203,64 @@ def test_load_config_from_env_file_and_environment(tmp_path):
                          env_file=env_file)
     assert config == AgentConfig("http://example.test:5000", "emp_021", "tok")
     assert load_config(env={}, env_file=tmp_path / "missing") == AgentConfig(None, "emp_014", None)
+
+
+@pytest.mark.parametrize("url", [
+    "http://169.254.169.254/latest/meta-data", "http://example.com:5000",
+    "http://127.0.0.1.evil.example:5000", "file:///etc/passwd", "ftp://127.0.0.1",
+    "http://employee:secret@127.0.0.1:5000", "http://127.0.0.1:5000/other",
+    "http://127.0.0.1:5000?redirect=external", "http://127.0.0.1:5000#fragment",
+    "http://127.0.0.1:70000", "http://localhost:5000\\@example.com",
+    "http://127.0.0.1:5000\n", "http://2130706433:5000", "http://127.0.0.1:0",
+])
+def test_non_backend_origins_are_rejected_before_network_or_worker_start(url):
+    with pytest.raises(ValueError):
+        Transport(AgentConfig(backend_url=url, user_id="emp_014"))
+
+
+def test_localhost_is_pinned_to_a_loopback_literal_without_dns():
+    assert backend_address("http://localhost:5000/") == ("http", "127.0.0.1", 5000)
+    assert backend_address("https://[::1]:5000") == ("https", "::1", 5000)
+
+
+def test_redirects_cannot_forward_counts_or_credentials(backend):
+    target = FakeBackend()
+    try:
+        backend.redirect_to = target.url + "/analyze"
+        backend.statuses = [307]
+        transport = Transport(config_for(backend, token="synthetic-secret"))
+        transport.send(make_payload())
+        transport.close()
+        assert transport.sent == 0
+        assert transport.dropped == 1
+        assert len(backend.requests) == 1
+        assert target.requests == []
+    finally:
+        target.close()
+
+
+def test_request_paths_cannot_escape_the_fixed_endpoints(backend):
+    transport = Transport(config_for(backend))
+    try:
+        for path in ["http://example.com/", "//example.com/", "/../admin", "/analyze?url=external"]:
+            with pytest.raises(ValueError, match="Unknown backend endpoint"):
+                transport._post(path, {})
+        assert backend.requests == []
+    finally:
+        transport.close()
+
+
+def test_proxy_environment_cannot_reroute_agent_requests(backend, monkeypatch):
+    proxy = FakeBackend()
+    try:
+        monkeypatch.setenv("HTTP_PROXY", proxy.url)
+        monkeypatch.setenv("http_proxy", proxy.url)
+        monkeypatch.setenv("NO_PROXY", "")
+        transport = Transport(config_for(backend))
+        transport.send(make_payload())
+        transport.close()
+        assert transport.sent == 1
+        assert len(backend.requests) == 1
+        assert proxy.requests == []
+    finally:
+        proxy.close()

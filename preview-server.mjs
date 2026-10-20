@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
 import { createPreviewStore, servePreviewApi } from './preview-api.mjs';
 
 try { process.loadEnvFile(); } catch (error) {
@@ -11,23 +12,36 @@ const PORT = 4173;
 const BACKEND_URL = (process.env.WHOKNOWS_BACKEND_URL || 'http://127.0.0.1:5000').replace(/\/$/, '');
 const previewStore = createPreviewStore();
 const ASSETS = new Map([
-  ['/', ['index.html', 'text/html']],
-  ['/index.html', ['index.html', 'text/html']],
-  ['/popup.html', ['popup.html', 'text/html']],
-  ['/popup.css', ['popup.css', 'text/css']],
-  ['/popup.js', ['popup.js', 'text/javascript']],
-  ['/people-panel.html', ['people-panel.html', 'text/html']],
-  ['/people-panel.css', ['people-panel.css', 'text/css']],
-  ['/people-panel.js', ['people-panel.js', 'text/javascript']],
-  ['/topic-catalog.json', ['topic-catalog.json', 'application/json']],
-  ['/whoknows-icon.png', ['whoknows-icon.png', 'image/png']],
-  ['/profile-portraits.png', ['profile-portraits.png', 'image/png']],
-  ['/account-portrait.png', ['account-portrait.png', 'image/png']],
+  ['/', [() => readFile(new URL('index.html', import.meta.url)), 'text/html']],
+  ['/index.html', [() => readFile(new URL('index.html', import.meta.url)), 'text/html']],
+  ['/popup.html', [() => readFile(new URL('popup.html', import.meta.url)), 'text/html']],
+  ['/popup.css', [() => readFile(new URL('popup.css', import.meta.url)), 'text/css']],
+  ['/popup.js', [() => readFile(new URL('popup.js', import.meta.url)), 'text/javascript']],
+  ['/people-panel.html',
+    [() => readFile(new URL('people-panel.html', import.meta.url)), 'text/html']],
+  ['/people-panel.css',
+    [() => readFile(new URL('people-panel.css', import.meta.url)), 'text/css']],
+  ['/people-panel.js',
+    [() => readFile(new URL('people-panel.js', import.meta.url)), 'text/javascript']],
+  ['/topic-catalog.json',
+    [() => readFile(new URL('topic-catalog.json', import.meta.url)), 'application/json']],
+  ['/whoknows-icon.png',
+    [() => readFile(new URL('whoknows-icon.png', import.meta.url)), 'image/png']],
+  ['/profile-portraits.png',
+    [() => readFile(new URL('profile-portraits.png', import.meta.url)), 'image/png']],
+  ['/account-portrait.png',
+    [() => readFile(new URL('account-portrait.png', import.meta.url)), 'image/png']],
 ]);
 
 /** Serve only preview assets and proxy the fixed local health endpoint to avoid CORS issues. */
-async function servePreview(request, response) {
-  const pathname = new URL(request.url, 'http://localhost').pathname;
+export async function servePreview(request, response) {
+  let pathname;
+  try {
+    pathname = new URL(request.url, 'http://localhost').pathname;
+  } catch {
+    response.writeHead(400).end('Invalid request URL');
+    return;
+  }
   if (pathname.startsWith('/ui-api/')) {
     await servePreviewApi(request, response, pathname, previewStore, backendRequest);
     return;
@@ -55,13 +69,13 @@ async function servePreview(request, response) {
     return;
   }
   try {
-    const content = await readFile(new URL(asset[0], import.meta.url));
+    const content = await asset[0]();
     response.writeHead(200, {
       'Content-Type': asset[1],
       'Cache-Control': 'no-store',
     }).end(content);
   } catch (error) {
-    console.error(`Cannot serve ${asset[0]}: ${error.message}`);
+    console.error(`Cannot serve preview asset: ${error.message}`);
     response.writeHead(500).end('Unable to load preview asset');
   }
 }
@@ -81,11 +95,13 @@ async function backendRequest(path, body) {
   return result;
 }
 
-const server = createServer(servePreview);
-server.on('error', (error) => {
-  console.error(`Preview server failed: ${error.message}`);
-  process.exitCode = 1;
-});
-server.listen(PORT, '127.0.0.1', () => {
-  console.info(`Popup preview: http://127.0.0.1:${PORT}`);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const server = createServer(servePreview);
+  server.on('error', (error) => {
+    console.error(`Preview server failed: ${error.message}`);
+    process.exitCode = 1;
+  });
+  server.listen(PORT, '127.0.0.1', () => {
+    console.info(`Popup preview: http://127.0.0.1:${PORT}`);
+  });
+}

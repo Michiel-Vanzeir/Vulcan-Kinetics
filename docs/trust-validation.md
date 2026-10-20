@@ -37,7 +37,7 @@ Run from the repo root:
 
 ```sh
 uv run --project Neo4J-backend --with pytest --with-requirements capture-agent/requirements-dev.txt pytest Neo4J-backend/tests Neo4J-backend/test_expertise_filter.py capture-agent/tests -q
-node --test preview-api.test.mjs preview-ui.test.mjs
+node --test preview-server.test.mjs preview-api.test.mjs preview-ui.test.mjs
 ```
 
 ## Validation still needed before deployment

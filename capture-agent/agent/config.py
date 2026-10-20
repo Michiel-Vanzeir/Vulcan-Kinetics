@@ -3,7 +3,7 @@
 Runtime settings come from environment variables, or from capture-agent/.env (the environment
 wins). Every variable the agent reads:
 
-    WHOKNOWS_BACKEND_URL  Backend base URL, e.g. http://localhost:5000. The agent POSTs to
+    WHOKNOWS_BACKEND_URL  Local HTTP(S) origin, e.g. http://localhost:5000. The agent POSTs to
                           <url>/analyze and <url>/experts. Unset: demo mode, nothing is sent.
     WHOKNOWS_USER_ID      User id sent with every payload. Default: emp_014 (a demo employee).
     WHOKNOWS_AUTH_TOKEN   Employee bearer token required by the backend. Default: none.
