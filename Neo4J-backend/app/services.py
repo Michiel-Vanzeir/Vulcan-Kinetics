@@ -1,3 +1,4 @@
+import math
 import uuid
 from datetime import datetime, timezone
 from . import hierarchy
@@ -54,7 +55,8 @@ def create_node(data: CreateNodeIn) -> dict:
     node_id = str(uuid.uuid4())
     props = {"id": node_id, "name": data.name, "summary": data.summary}
     if data.type == "Person":
-        props.update({k: v for k, v in (("email", data.email), ("phone", data.phone)) if v})
+        props.update({k: v for k, v in (("email", data.email), ("phone", data.phone),
+                                        ("user_id", data.user_id)) if v})
 
     if data.client_ids:
         _check_can_serve(data.type)
@@ -179,12 +181,92 @@ def get_knowledge_for_node(node_id: str, recursive: bool = True, include_superse
 
 
 # ---------- search ----------
-def who_knows(query: str) -> list[dict]:
+def _recency_weight(occurred_at: str, now: datetime) -> float:
+    """Exponential decay so stale knowledge counts less. Halves every RECENCY_HALF_LIFE_DAYS."""
+    try:
+        when = datetime.strptime(occurred_at[:19], "%Y-%m-%dT%H:%M:%S")
+    except (TypeError, ValueError):
+        return 1.0   # undated knowledge is not penalised
+    age_days = max(0.0, (now - when).total_seconds() / 86400)
+    return 0.5 ** (age_days / config.RECENCY_HALF_LIFE_DAYS)
+
+
+def _keyword_boost(query_terms: set[str], keywords: list[str]) -> float:
+    """Small lexical boost on top of vector similarity for each query word that is a keyword."""
+    kw = {w for k in (keywords or []) for w in k.lower().split()}
+    hits = sum(1 for t in query_terms if t in kw)
+    return min(1.0, config.KEYWORD_BOOST * hits)
+
+
+def _matches_user(person: dict, user_id: str) -> bool:
+    return user_id is not None and user_id in (person.get("user_id"), person.get("id"))
+
+
+def who_knows(query: str, exclude_user_id: str = None, count_ping: bool = True) -> list[dict]:
+    """Rank people for a query. Score per person is the sum over their matching knowledge of
+    similarity * importance * recency * (1 + keyword boost), then a mild penalty if the person
+    has been surfaced far more often than the others competing for this query (load balancing).
+    Returns [] when the best match is too weak to trust (knowledge gap)."""
     if not query.strip():
         raise Invalid("Query must not be empty")
     emb = embed(query)
+    terms = {t.lower() for t in query.split()}
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
     with get_driver().session() as s:
-        return s.execute_read(
-            repo.who_knows, emb, config.VECTOR_OVER_FETCH,
-            config.WHO_KNOWS_DOCS, config.WHO_KNOWS_PEOPLE,
-        )
+        rows = s.execute_read(repo.search_candidates, emb, config.VECTOR_OVER_FETCH, config.WHO_KNOWS_DOCS)
+
+        best_similarity = max((r["similarity"] for r in rows), default=0.0)
+        if best_similarity < config.KNOWLEDGE_GAP_MIN_SIMILARITY:
+            return []   # nobody has relevant-enough knowledge: show a gap, not a weak name
+
+        people: dict[str, dict] = {}
+        for r in rows:
+            p, d = r["person"], r["doc"]
+            weight = (r["similarity"] * d["importance"]
+                      * _recency_weight(d["occurred_at"], now)
+                      * (1 + _keyword_boost(terms, d["keywords"])))
+            acc = people.setdefault(p["id"], {
+                "person": {k: p[k] for k in ("id", "name", "summary", "email", "phone", "user_id")},
+                "ping_count": p["ping_count"], "raw_score": 0.0, "max_importance": 0, "docs": [],
+            })
+            acc["raw_score"] += weight
+            acc["max_importance"] = max(acc["max_importance"], d["importance"])
+            acc["docs"].append({"id": d["id"], "title": d["title"], "summary": d["summary"],
+                                "importance": d["importance"], "similarity": r["similarity"]})
+
+        candidates = [a for a in people.values() if not _matches_user(a["person"], exclude_user_id)]
+        if not candidates:
+            return []
+
+        # Load balancing: down-weight anyone pinged well above the pool average for THIS query.
+        mean_ping = sum(a["ping_count"] for a in candidates) / len(candidates)
+        for a in candidates:
+            overload = max(0.0, a["ping_count"] - mean_ping) / (mean_ping + 1)
+            penalty = 1 / (1 + config.PING_PENALTY_STRENGTH * overload)
+            a["score"] = a["raw_score"] * penalty
+            a["ping_penalty"] = round(1 - penalty, 3)   # 0 = none, higher = more down-weighted
+
+        ranked = sorted(candidates, key=lambda a: (a["score"], a["max_importance"]), reverse=True)
+        ranked = ranked[:config.WHO_KNOWS_PEOPLE]
+
+        paths = s.execute_read(repo.org_paths, [a["person"]["id"] for a in ranked])
+        for a in ranked:
+            a["org_paths"] = paths.get(a["person"]["id"], [])
+            a["score"] = round(a["score"], 6)
+            a.pop("raw_score", None)
+
+        # Only the experts actually surfaced as the answer are counted as "pinged", so repeated
+        # questions keep landing on the same person and the penalty above can rotate them out.
+        if count_ping:
+            pinged = [a["person"]["id"] for a in ranked[:config.WHO_KNOWS_PING_TOP_N]]
+            if pinged:
+                s.execute_write(repo.increment_pings, pinged)
+
+    return ranked
+
+
+def ping_counts() -> list[dict]:
+    """How often each person has been surfaced as an expert. For the management dashboard."""
+    with get_driver().session() as s:
+        return s.execute_read(repo.ping_counts)

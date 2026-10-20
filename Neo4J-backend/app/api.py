@@ -60,6 +60,11 @@ def who_knows():
     return jsonify(services.who_knows(request.args.get("q", "")))
 
 
+@bp.get("/pings")
+def pings():
+    return jsonify(services.ping_counts())
+
+
 @bp.errorhandler(ValidationError)
 def _validation(e):
     return jsonify({"error": "validation", "details": json.loads(e.json())}), 422

@@ -180,8 +180,10 @@ def knowledge_about_client(tx, client_id: str, include_superseded: bool) -> list
     return [r.data() for r in result]
 
 
-def who_knows(tx, embedding: list[float], over_fetch: int, n_docs: int, n_people: int) -> list[dict]:
-    rows = tx.run(
+def search_candidates(tx, embedding: list[float], over_fetch: int, n_docs: int) -> list[dict]:
+    """One row per (person, matching doc). Ranking (recency, keywords, ping penalty) is done
+    in services.py so it stays pure and testable; this only fetches the raw signals."""
+    return tx.run(
         """
         CALL db.index.vector.queryNodes('knowledge_embedding', $over_fetch, $emb)
         YIELD node AS k, score
@@ -190,29 +192,47 @@ def who_knows(tx, embedding: list[float], over_fetch: int, n_docs: int, n_people
         MATCH (h:OrgNode)-[:HAS_KNOWLEDGE]->(k)
         MATCH (p:Person)-[:PART_OF*0..]->(h)
         WITH DISTINCT p, k, score
-        RETURN p{.id, .name, .summary, .email, .phone} AS person,
-               sum(score) AS score,
-               max(k.importance) AS max_importance,
-               collect({id: k.id, title: k.title, summary: k.summary,
-                        importance: k.importance, similarity: score}) AS docs
-        ORDER BY score DESC, max_importance DESC
-        LIMIT $n_people
+        RETURN p{.id, .name, .summary, .email, .phone, user_id: p.user_id,
+                 ping_count: coalesce(p.ping_count, 0)} AS person,
+               k{.id, .title, .summary, .importance, .keywords,
+                 occurred_at: toString(k.occurred_at)} AS doc,
+               score AS similarity
         """,
-        emb=embedding, over_fetch=over_fetch, n_docs=n_docs, n_people=n_people,
+        emb=embedding, over_fetch=over_fetch, n_docs=n_docs,
     ).data()
-    if not rows:
-        return []
-    paths = tx.run(
+
+
+def org_paths(tx, person_ids: list[str]) -> dict[str, list]:
+    """Root-to-person name paths for each person, so a suggestion shows where they sit."""
+    result = tx.run(
         """
         MATCH path = (p:OrgNode)-[:PART_OF*0..]->(r:OrgNode)
         WHERE p.id IN $ids AND NOT (r)-[:PART_OF]->()
         RETURN p.id AS pid, [n IN reverse(nodes(path)) | n.name] AS path
         """,
-        ids=[r["person"]["id"] for r in rows],
+        ids=person_ids,
     )
     by_person = defaultdict(list)
-    for rec in paths:
+    for rec in result:
         by_person[rec["pid"]].append(rec["path"])
-    for r in rows:
-        r["org_paths"] = by_person[r["person"]["id"]]
-    return rows
+    return by_person
+
+
+def increment_pings(tx, person_ids: list[str]) -> None:
+    """Record that these people were surfaced as experts (load-balancing + management view)."""
+    tx.run(
+        "MATCH (p:Person) WHERE p.id IN $ids SET p.ping_count = coalesce(p.ping_count, 0) + 1",
+        ids=person_ids,
+    )
+
+
+def ping_counts(tx) -> list[dict]:
+    """All people by how often they have been surfaced. For the management dashboard."""
+    return tx.run(
+        """
+        MATCH (p:Person)
+        RETURN p{.id, .name, .email, user_id: p.user_id} AS person,
+               coalesce(p.ping_count, 0) AS ping_count
+        ORDER BY ping_count DESC, p.name
+        """
+    ).data()
