@@ -1,37 +1,20 @@
-/** Synthetic fixtures for testing the reference people panel without extension APIs. */
-// HACK: Search, replies and vouches are browser-local demos, not backend operations.
-const PEOPLE = [
-  { id: 'sarah', name: 'Sarah De Vos', role: 'Payroll consultant', country: 'BE',
-    topic: 'Year-end bonus PC 200', keywords: 'payroll bonus part-time pc 200',
-    evidence: 'Calculated year-end bonus for part-time employee',
-    recent: '2 weeks ago', count: 12, vouches: 8 },
-  { id: 'tom', name: 'Tom Janssens', role: 'Senior payroll advisor', country: 'BE',
-    topic: 'Year-end bonus PC 200', keywords: 'payroll bonus procedure pc 200',
-    evidence: 'Wrote the original year-end bonus procedure',
-    recent: '2024', count: 24, vouches: 5, stale: true, allowPings: false },
-  { id: 'emma', name: 'Emma Peeters', role: 'HR legal consultant', country: 'BE',
-    topic: 'Notice periods', keywords: 'notice termination employment belgium',
-    evidence: 'Reviewed notice periods for Belgian employment contracts',
-    recent: '3 days ago', count: 18, vouches: 9, dndUntil: Date.now() + 50 * 60_000 },
-  { id: 'lucas', name: 'Lucas Martin', role: 'Payroll specialist', country: 'FR',
-    topic: 'French payroll', keywords: 'france french payroll salary',
-    evidence: 'Resolved a payroll calculation question for a French client',
-    recent: '1 week ago', count: 16, vouches: 6 },
-];
-const conversations = new Map();
-const drafts = new Map();
-const pingedPeople = new Set();
-const DND_DURATION_MS = 50 * 60_000;
-const ACCOUNT_STORAGE_KEY = 'whoknows-preview-account';
-let accountPreferences = { allowPings: true, dndUntil: 0 };
-let activePerson = null;
-let accountOpen = false;
+/** Local demo client for the preview server's synthetic inbox and account API. */
+let state = null;
+let screen = 'people';
+let accountReturn = 'people';
+let chatReturn = 'people';
+let activePersonId = null;
 let listScrollTop = 0;
+let searchTimer;
+let refreshRunning = false;
+let savingPreference = false;
+const drafts = new Map();
 const results = document.querySelector('.body');
 const searchInput = document.querySelector('#people-search');
 
-// Popup mode: the capture agent opens this page as its own small window on Ctrl+Alt+W,
-// with ?popup=1&topics=notice_period,country_ES (topic tokens, never typed text).
+// Popup mode: the capture agent opens this page as its own small window on Ctrl+Alt+W or when
+// the backend reports doubt, with ?popup=1&topics=notice_period,country_ES (topic tokens,
+// never typed text).
 const pageParams = new URLSearchParams(location.search);
 const POPUP_MODE = pageParams.has('popup');
 // Topic tokens -> a search the synthetic fixtures understand, most specific topic first.
@@ -42,79 +25,128 @@ const TOPIC_SEARCH = [
 ];
 if (POPUP_MODE) document.documentElement.classList.add('popup');
 
-/** Load only valid local demo preferences, keeping storage failures visible. */
-function loadAccountPreferences() {
+/** Show actionable API errors without losing the current screen or message draft. */
+function showError(error) {
+  const output = document.querySelector('#ui-error');
+  output.hidden = !error;
+  output.textContent = error ? error.message : '';
+  document.querySelector('#retry').hidden = !error;
+}
+
+/** Read or mutate the loopback UI API with a bounded request timeout. */
+async function request(path, body) {
+  const response = await fetch(`/ui-api${path}`, {
+    method: body === undefined ? 'GET' : 'POST',
+    headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(5000),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'The preview server could not complete this action.');
+  return result;
+}
+
+/** Apply server-owned data without replacing the active chat composer. */
+function applyState(next) {
+  const changed = JSON.stringify(state) !== JSON.stringify(next);
+  state = next;
+  renderPreferences();
+  if (changed) {
+    if (screen === 'people') renderPeople();
+    renderInbox();
+    if (screen === 'chat') renderMessages();
+  }
+  const unread = state.pings.filter(ping => ping.recipientId === 'you' && !ping.read).length
+    + state.messages.filter(message => message.recipientId === 'you' && !message.read).length;
+  document.querySelector('#account-button').classList.toggle('has-unread', unread > 0);
+  document.querySelector('#account-button').setAttribute('aria-label',
+    unread ? `Account, ${unread} unread items` : 'Your account');
+}
+
+/** Synchronize the current demo state across preview windows. */
+async function refresh() {
+  if (refreshRunning) return;
+  refreshRunning = true;
   try {
-    const saved = JSON.parse(localStorage.getItem(ACCOUNT_STORAGE_KEY) || 'null');
-    if (saved && typeof saved.allowPings === 'boolean' && Number.isFinite(saved.dndUntil)) {
-      accountPreferences = { allowPings: saved.allowPings, dndUntil: saved.dndUntil };
+    applyState(await request('/state'));
+    if (screen === 'chat' && state.messages.some(message =>
+      message.senderId === activePersonId && message.recipientId === 'you' && !message.read)) {
+      applyState(await request('/read', { personId: activePersonId }));
     }
-  } catch {
-    showAccountStorageError();
+    showError(null);
+  } catch (error) {
+    showError(new Error(`Cannot reach the UI server. ${error.message}`));
+  } finally {
+    refreshRunning = false;
   }
 }
 
-/** Explain when browser storage prevents account preferences from persisting. */
-function showAccountStorageError() {
-  const error = document.querySelector('#account-error');
-  error.hidden = false;
-  error.textContent = 'Account settings could not be saved or loaded in this browser.';
-}
-
-/** Persist account choices and immediately refresh the availability shown on cards. */
-function saveAccountPreferences() {
+/** Keep errors visible and prevent duplicate submissions while an action is in progress. */
+async function perform(control, action) {
+  control.disabled = true;
+  showError(null);
   try {
-    localStorage.setItem(ACCOUNT_STORAGE_KEY, JSON.stringify(accountPreferences));
-  } catch {
-    showAccountStorageError();
-  }
-  renderAccount();
-  renderPeople();
-}
-
-/** Compute availability from recipient consent and an absolute DND expiry time. */
-function getPingAvailability(person) {
-  const preferences = person.id === 'sarah' ? accountPreferences : person;
-  if (preferences.allowPings === false || preferences.dndUntil > Date.now()) {
-    return { allowed: false, label: 'Unavailable for pings' };
-  }
-  return { allowed: true, label: 'Available for pings' };
-}
-
-/** Keep account controls and the DND countdown in sync with the current time. */
-function renderAccount() {
-  const dndActive = accountPreferences.dndUntil > Date.now();
-  document.querySelector('#allow-pings').checked = accountPreferences.allowPings;
-  const dndButton = document.querySelector('#dnd-button');
-  dndButton.textContent = dndActive ? 'Resume pings' : 'Pause pings';
-  dndButton.setAttribute('aria-pressed', String(dndActive));
-  dndButton.disabled = !accountPreferences.allowPings && !dndActive;
-  document.querySelector('#account-status').textContent = getPingAvailability(PEOPLE[0]).label;
-}
-
-/** Switch to account settings and restore the previous list or chat on return. */
-function setAccountOpen(open) {
-  accountOpen = open;
-  document.querySelector('#account-settings').hidden = !open;
-  document.querySelector('#account-button').setAttribute('aria-expanded', String(open));
-  document.querySelector('.list-view').hidden = open || Boolean(activePerson);
-  document.querySelector('.chat-view').hidden = open || !activePerson;
-  if (open) {
-    document.querySelector('#account-back').focus();
-  } else {
-    if (activePerson) openChat(activePerson, false);
-    document.querySelector('#account-button').focus();
+    await action();
+  } catch (error) {
+    showError(error);
+  } finally {
+    if (control.isConnected) control.disabled = false;
   }
 }
 
-/** Match every search term against synthetic names, roles and topic evidence. */
+/** Save a mutation and use the server response as the source of truth. */
+async function mutate(path, body) {
+  const next = await request(path, body);
+  applyState(next);
+}
+
+/** Keep controls synchronized with the server, including expired timed pauses. */
+function renderPreferences() {
+  if (!state || savingPreference) return;
+  document.querySelector('#allow-pings').checked = state.account.allowPings;
+  document.querySelector('#account-auto-detect').checked = state.account.autoDetect;
+  const paused = state.account.dndUntil > Date.now();
+  const pause = document.querySelector('#dnd-button');
+  pause.textContent = paused ? 'Resume pings' : 'Pause pings';
+  pause.setAttribute('aria-pressed', String(paused));
+  pause.disabled = !state.account.allowPings && !paused;
+  document.querySelector('#account-status').textContent = state.account.pingable
+    ? 'Available for pings' : 'Unavailable for pings';
+}
+
+/** Update settings on the server and restore the controls after any failed save. */
+async function savePreference(control, changes) {
+  savingPreference = true;
+  await perform(control, async () => mutate('/preferences', changes));
+  savingPreference = false;
+  renderPreferences();
+}
+
+/** Navigate separate list, inbox, settings and chat views without discarding drafts. */
+function navigate(next) {
+  screen = next;
+  document.querySelector('.list-view').hidden = next !== 'people';
+  document.querySelector('.chat-view').hidden = next !== 'chat';
+  document.querySelector('#account-view').hidden = next !== 'account';
+  document.querySelector('#settings-view').hidden = next !== 'settings';
+  document.querySelector('#account-button').setAttribute('aria-expanded', String(next === 'account'));
+  if (next === 'people') { renderPeople(); results.scrollTop = listScrollTop; }
+  if (next === 'account') renderInbox();
+  if (next === 'chat') renderMessages();
+}
+
+/** Match every search term against the synthetic directory supplied by the server. */
 function searchPeople(query) {
   const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  return PEOPLE.filter(person => {
-    const searchable = [person.name, person.role, person.country, person.topic,
-      person.keywords, person.evidence].join(' ').toLowerCase();
-    return terms.every(term => searchable.includes(term));
-  });
+  return state.people.filter(person => terms.every(term =>
+    [person.name, person.role, person.country, person.topic, person.keywords, person.evidence]
+      .join(' ').toLowerCase().includes(term)));
+}
+
+/** Use server-calculated availability so client controls cannot bypass recipient consent. */
+function getPingAvailability(person) {
+  return { allowed: person.pingable,
+    label: person.pingable ? 'Available for pings' : 'Unavailable for pings' };
 }
 
 /** Build dynamic content as text so search and message text cannot inject markup. */
@@ -133,24 +165,22 @@ function button(label, className, action) {
   return node;
 }
 
-/** Display cards grouped by topic with the first current expert highlighted. */
+/** Display searchable profile cards grouped by expertise topic. */
 function renderPeople() {
-  const matches = searchPeople(searchInput.value);
+  if (!state) return;
+  const scrollTop = results.scrollTop;
   results.replaceChildren();
+  const matches = searchPeople(searchInput.value);
   if (!matches.length) {
-    const gap = element('div', 'gap');
-    gap.append(element('b', '', 'Knowledge gap'), element('p', '',
-      'Nobody in this demo has recent expertise on this topic. Try “bonus”, “notice” or a name.'));
-    results.append(gap);
-    return;
+    results.append(element('div', 'gap', 'No matching colleagues. Try a name or topic.'));
   }
-  const topics = [...new Set(matches.map(person => person.topic))];
-  for (const topic of topics) {
+  for (const topic of new Set(matches.map(person => person.topic))) {
     results.append(element('div', 'topic', topic));
-    const experts = matches.filter(person => person.topic === topic);
-    const best = experts.find(person => !person.stale);
-    for (const person of experts) results.append(createCard(person, person === best));
+    const people = matches.filter(person => person.topic === topic);
+    const best = people.find(person => !person.stale);
+    for (const person of people) results.append(createCard(person, person === best));
   }
+  results.scrollTop = scrollTop;
 }
 
 /** Recreate the reference expert card, evidence and trust signal layout. */
@@ -206,19 +236,21 @@ function createCard(person, best) {
   const actions = element('div', 'card-actions');
   const pingStatus = element('div', 'ping-status');
   pingStatus.setAttribute('role', 'status');
-  const ping = button(pingedPeople.has(person.id) ? 'Pinged' : 'Ping', 'btn ghost', () => {
-    if (!getPingAvailability(person).allowed || pingedPeople.has(person.id)) return;
-    pingedPeople.add(person.id);
-    ping.textContent = 'Pinged';
-    ping.disabled = true;
-    pingStatus.textContent = `Demo ping sent to ${firstName}.`;
+  const pinged = state.pings.some(ping => ping.recipientId === person.id && !ping.read);
+  const ping = button(pinged ? 'Pinged' : 'Ping', 'btn ghost', async () => {
+    await perform(ping, async () => {
+      await mutate('/pings', { personId: person.id });
+      pingStatus.textContent = `Ping sent to ${firstName} in this demo.`;
+      ping.textContent = 'Pinged';
+      ping.disabled = true;
+    });
   });
   ping.setAttribute('aria-label', `Ping ${person.name}`);
-  ping.disabled = !availability.allowed || pingedPeople.has(person.id);
+  ping.disabled = !availability.allowed || pinged;
   if (!availability.allowed) ping.setAttribute('title', availability.label);
-  if (pingedPeople.has(person.id)) pingStatus.textContent = `Demo ping sent to ${firstName}.`;
-  actions.append(button(conversations.has(person.id) ? `Open chat with ${firstName}` : `Ask ${firstName}`,
-    `btn${person.stale ? ' ghost' : ''}`, () => openChat(person)), ping);
+  if (pinged) pingStatus.textContent = `Demo ping sent to ${firstName}.`;
+  actions.append(button(state.messages.some(message => message.senderId === person.id || message.recipientId === person.id) ? `Open chat with ${firstName}` : `Ask ${firstName}`,
+    `btn${person.stale ? ' ghost' : ''}`, () => openChat(person.id, 'people')), ping);
   card.append(actions, pingStatus);
   return card;
 }
@@ -239,112 +271,156 @@ function createPortrait(person) {
   return portrait;
 }
 
-/** Open a dedicated conversation while keeping the list query and scroll position. */
-function openChat(person, focus = true) {
-  if (!activePerson) listScrollTop = results.scrollTop;
-  activePerson = person;
-  document.querySelector('.list-view').hidden = true;
+/** Render incoming pings and message previews with read and reply actions. */
+function renderInbox() {
+  if (!state) return;
+  const inbox = document.querySelector('#inbox-items');
+  inbox.replaceChildren();
+  const incomingPings = state.pings.filter(ping => ping.recipientId === 'you' && !ping.read);
+  const contacts = state.people.filter(person => state.messages.some(message =>
+    message.senderId === person.id || message.recipientId === person.id));
+  const unreadMessages = state.messages.filter(message => message.recipientId === 'you' && !message.read);
+  document.querySelector('#inbox-count').textContent =
+    `${incomingPings.length + unreadMessages.length} unread`;
+  for (const ping of incomingPings) {
+    const person = state.people.find(candidate => candidate.id === ping.senderId);
+    const item = element('article', 'inbox-item unread');
+    item.append(element('div', 'inbox-kind', 'Ping'), element('div', 'name', person.name),
+      element('p', 'account-description', 'Would like your attention.'));
+    const actions = element('div', 'row');
+    actions.append(button('Message', 'vote vote-primary', async () => {
+      await openChat(person.id, 'account');
+    }));
+    const dismiss = button('Dismiss', 'vote', () => perform(dismiss,
+      async () => mutate('/read', { pingId: ping.id })));
+    actions.append(dismiss);
+    item.append(actions);
+    inbox.append(item);
+  }
+  for (const person of contacts) {
+    const messages = messagesFor(person.id);
+    const latest = messages.at(-1);
+    const unread = messages.some(message => message.recipientId === 'you' && !message.read);
+    const item = button('', `inbox-item inbox-thread${unread ? ' unread' : ''}`,
+      () => openChat(person.id, 'account'));
+    const identity = element('div', 'inbox-person');
+    identity.append(createPortrait(person), element('div', 'name', person.name));
+    item.append(identity, element('p', 'inbox-preview',
+      `${latest.senderId === 'you' ? 'You: ' : ''}${latest.text}`),
+      element('span', 'inbox-kind', unread ? 'New message ? Open to reply' : 'Open conversation'));
+    inbox.append(item);
+  }
+  if (!inbox.children.length) inbox.append(element('p', 'muted', 'You are all caught up.'));
+}
+
+/** Filter a thread to the fixed local account and its selected colleague. */
+function messagesFor(personId) {
+  return state.messages.filter(message =>
+    (message.senderId === 'you' && message.recipientId === personId)
+    || (message.senderId === personId && message.recipientId === 'you'));
+}
+
+/** Open a full conversation with a persistent composer for repeated replies. */
+async function openChat(personId, from = chatReturn) {
+  if (!state) return;
+  const person = state.people.find(candidate => candidate.id === personId);
+  if (!person) return;
+  const history = messagesFor(personId);
+  const latest = history.at(-1);
+  const intent = from === 'people' ? 'ask'
+    : latest?.senderId === 'you' ? latest.intent
+      : latest?.replyToIntent === 'ask' ? 'ask' : 'reply';
+  if (screen === 'people') listScrollTop = results.scrollTop;
+  activePersonId = personId;
+  chatReturn = from;
   const chat = document.querySelector('.chat-view');
-  chat.hidden = false;
-  const back = button('', 'back', returnToPeople);
-  back.setAttribute('aria-label', 'Back to people');
-  back.setAttribute('title', 'Back to people');
-  const contactHeader = element('div', 'chat-contact-header');
+  const header = element('div', 'chat-contact-header');
+  const back = button('', 'back', () => navigate(chatReturn));
+  back.setAttribute('aria-label', from === 'account' ? 'Back to inbox' : 'Back to people');
   const contact = element('div', 'chat-contact');
   const identity = element('div');
   identity.append(element('h1', 'chat-heading', person.name),
-    element('p', 'chat-subtitle', `${person.role} · ${person.country}`),
+    element('p', 'chat-subtitle', `${person.role} ? ${person.country}`),
     element('p', 'chat-topic', person.topic));
   contact.append(createPortrait(person), identity);
-  contactHeader.append(back, contact);
+  header.append(back, contact);
   const content = element('div', 'chat-content');
-  content.setAttribute('aria-live', 'polite');
-  chat.replaceChildren(contactHeader, content);
-  if (conversations.has(person.id)) renderAction(content, person);
-  else showComposer(content, person);
-  if (focus && conversations.has(person.id)) back.focus();
-}
-
-/** Restore the people list without discarding drafts, messages or feedback. */
-function returnToPeople() {
-  activePerson = null;
-  document.querySelector('.chat-view').hidden = true;
-  document.querySelector('.list-view').hidden = false;
-  renderPeople();
-  results.scrollTop = listScrollTop;
-  searchInput.focus();
-}
-
-/** Restore the ask action or a simulated conversation when search results change. */
-function renderAction(slot, person) {
-  const firstName = person.name.split(' ')[0];
-  const conversation = conversations.get(person.id);
-  if (!conversation) {
-    slot.replaceChildren(button(`Ask ${firstName}`, `btn${person.stale ? ' ghost' : ''}`,
-      () => showComposer(slot, person)));
-    return;
-  }
-  const thread = element('div', 'thread');
-  thread.append(element('div', 'bubble me', conversation.message));
-  if (!conversation.replied) {
-    thread.append(element('div', 'status', `Demo sent · waiting for ${firstName}…`));
-  } else {
-    thread.append(element('div', 'bubble them', person.stale
-      ? 'I have not worked on this since 2024. Please double-check with a current expert.'
-      : 'Hi! I have handled this recently. Happy to walk you through it. (Simulated reply)'));
-    if (conversation.vote) {
-      const confirmation = element('div', 'votebox feedback-recorded');
-      confirmation.append(element('div', 'feedback-title', 'Thanks for your feedback'),
-        element('p', 'feedback-description', 'Recorded for this demo session.'));
-      thread.append(confirmation);
-    } else {
-      const votes = element('div', 'votebox');
-      votes.append(element('div', 'feedback-title', `Did ${firstName} know their stuff?`),
-        element('p', 'feedback-description', 'Help colleagues find the right person next time.'));
-      const row = element('div', 'feedback-actions');
-      for (const helpful of [true, false]) {
-        row.append(button(helpful ? 'Yes, vouch' : 'Not really',
-          helpful ? 'vote vote-primary' : 'vote', () => {
-          conversation.vote = helpful ? 'up' : 'down';
-          if (helpful) person.vouches += 1;
-          renderAction(slot, person);
-        }));
-      }
-      votes.append(row);
-      thread.append(votes);
-    }
-  }
-  slot.replaceChildren(thread);
-}
-
-/** Let the user edit and send a local demo message without contacting anyone. */
-function showComposer(slot, person) {
-  const firstName = person.name.split(' ')[0];
-  const compose = element('div', 'compose');
+  const messages = element('div', 'thread');
+  messages.id = 'chat-messages';
+  messages.setAttribute('role', 'log');
+  messages.setAttribute('aria-live', 'polite');
+  content.append(messages);
+  const compose = element('form', 'chat-composer');
+  compose.append(element('p', 'composer-context', intent === 'ask'
+    ? 'You are asking for help.' : 'You are replying to a colleague.'));
   const message = element('textarea');
   message.maxLength = 1000;
-  message.setAttribute('aria-label', `Message to ${firstName}`);
-  message.value = drafts.get(person.id)
-    ?? `Hi ${firstName}, quick question about ${person.topic}: ${searchInput.value}`;
-  message.addEventListener('input', () => drafts.set(person.id, message.value));
+  message.required = true;
+  message.setAttribute('aria-label', `Message to ${person.name}`);
+  message.placeholder = 'Write a message...';
+  message.value = drafts.get(personId) ?? (from === 'account' || messagesFor(personId).length ? ''
+    : `Hi ${person.name.split(' ')[0]}, quick question about ${person.topic}: ${searchInput.value}`);
+  message.addEventListener('input', () => drafts.set(personId, message.value));
+  const send = element('button', 'btn', 'Send message');
+  send.type = 'submit';
+  const cancel = button('Back', 'btn ghost', () => navigate(chatReturn));
   const row = element('div', 'row');
-  row.append(button('Cancel', 'btn ghost', returnToPeople),
-    button(`Send to ${firstName}`, 'btn', () => {
-      if (!message.value.trim()) { message.focus(); return; }
-      const conversation = { message: message.value.trim(), replied: false };
-      conversations.set(person.id, conversation);
-      renderAction(slot, person);
-      setTimeout(() => {
-        conversation.replied = true;
-        if (!accountOpen && activePerson?.id === person.id) openChat(person, false);
-      }, 1500);
-    }));
+  row.append(cancel, send);
   compose.append(message, row);
-  slot.replaceChildren(compose);
+  compose.addEventListener('submit', event => {
+    event.preventDefault();
+    if (!message.value.trim()) { message.focus(); return; }
+    const text = message.value;
+    message.disabled = true;
+    perform(send, async () => {
+      await mutate('/messages', { personId, text, intent });
+      if (message.value === text) { message.value = ''; drafts.set(personId, ''); }
+    }).finally(() => { message.disabled = false; message.focus(); });
+  });
+  chat.replaceChildren(header, content, compose);
+  navigate('chat');
+  renderMessages();
   message.focus();
+  try { await mutate('/read', { personId }); } catch (error) { showError(error); }
 }
 
-/** Close or reopen the preview while preserving search and conversation state. */
+/** Update only message history and feedback, leaving the draft and focus intact. */
+function renderMessages() {
+  if (!activePersonId || screen !== 'chat') return;
+  const container = document.querySelector('#chat-messages');
+  if (!container) return;
+  const messages = messagesFor(activePersonId);
+  container.replaceChildren();
+  for (const message of messages) {
+    container.append(element('div', `bubble ${message.senderId === 'you' ? 'me' : 'them'}`, message.text));
+  }
+  if (!messages.length) container.append(element('p', 'muted', 'Start the conversation below.'));
+  if (messages.at(-1)?.senderId === 'you') {
+    container.append(element('p', 'status', 'Sent. Waiting for a demo reply...'));
+  }
+  const latestReply = messages.findLast(message => message.senderId === activePersonId);
+  if (latestReply?.replyToIntent === 'ask') {
+    const feedback = element('div', 'votebox');
+    if (state.votes[activePersonId]) {
+      feedback.append(element('div', 'feedback-title', 'Thanks for your feedback'));
+    } else {
+      feedback.append(element('div', 'feedback-title', 'Did this answer help?'));
+      const row = element('div', 'feedback-actions');
+      for (const helpful of [true, false]) {
+        const vote = button(helpful ? 'Yes, vouch' : 'Not really',
+          helpful ? 'vote vote-primary' : 'vote', () => perform(vote,
+            async () => mutate('/votes', { personId: activePersonId, helpful })));
+        row.append(vote);
+      }
+      feedback.append(row);
+    }
+    container.append(feedback);
+  }
+  const scrolling = document.querySelector('.chat-content');
+  scrolling.scrollTop = scrolling.scrollHeight;
+}
+
+/** Close and reopen the panel without discarding server state or local drafts. */
 function setPanelOpen(open) {
   if (!open && POPUP_MODE) {
     window.close();
@@ -352,79 +428,46 @@ function setPanelOpen(open) {
   }
   document.querySelector('.panel').hidden = !open;
   document.querySelector('#reopen').hidden = open;
-  if (open && accountOpen) document.querySelector('#account-back').focus();
-  else if (open && activePerson) document.querySelector('.chat-view .back').focus();
-  else if (open) searchInput.focus();
+  if (open) document.querySelector('#account-button').focus();
   else document.querySelector('#reopen').focus();
 }
 
-document.querySelector('form').addEventListener('submit', event => {
+document.querySelector('form.ask-box').addEventListener('submit', event => {
   event.preventDefault();
-  renderPeople();
+  if (state) renderPeople(); else refresh();
 });
-searchInput.addEventListener('input', renderPeople);
-document.querySelector('.close').addEventListener('click', () => setPanelOpen(false));
-document.querySelector('#reopen').addEventListener('click', () => setPanelOpen(true));
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && accountOpen) {
-    setAccountOpen(false);
-    return;
-  }
-  if (event.key === 'Escape') setPanelOpen(false);
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(renderPeople, 120);
 });
 document.querySelector('#account-button').addEventListener('click', () => {
-  setAccountOpen(!accountOpen);
+  if (screen !== 'account' && screen !== 'settings') accountReturn = screen;
+  navigate('account');
 });
-document.querySelector('#account-back').addEventListener('click', () => setAccountOpen(false));
-
-/** Share the hesitation preference with the standalone settings popup. */
-function loadHesitationPreference() {
-  try {
-    document.querySelector('#account-auto-detect').checked =
-      localStorage.getItem('autoDetect') !== 'false';
-  } catch {
-    showAccountStorageError();
-  }
-}
-
-document.querySelector('#account-auto-detect').addEventListener('change', event => {
-  try {
-    localStorage.setItem('autoDetect', String(event.target.checked));
-  } catch {
-    showAccountStorageError();
-  }
+document.querySelector('#account-back').addEventListener('click', () => navigate(accountReturn));
+document.querySelector('#settings-button').addEventListener('click', () => navigate('settings'));
+document.querySelector('#settings-back').addEventListener('click', () => navigate('account'));
+document.querySelector('#allow-pings').addEventListener('change', event =>
+  savePreference(event.target, { allowPings: event.target.checked }));
+document.querySelector('#account-auto-detect').addEventListener('change', event =>
+  savePreference(event.target, { autoDetect: event.target.checked }));
+document.querySelector('#dnd-button').addEventListener('click', event => {
+  if (state) savePreference(event.target, { pause: !(state.account.dndUntil > Date.now()) });
 });
-window.addEventListener('storage', event => {
-  if (event.key === 'autoDetect' || event.key === null) loadHesitationPreference();
+document.querySelector('.close').addEventListener('click', () => setPanelOpen(false));
+document.querySelector('#reopen').addEventListener('click', () => setPanelOpen(true));
+document.querySelector('#retry').addEventListener('click', refresh);
+document.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  if (screen === 'settings') navigate('account');
+  else if (screen === 'account') navigate(accountReturn);
+  else if (screen === 'chat') navigate(chatReturn);
+  else setPanelOpen(false);
 });
-loadHesitationPreference();
-document.querySelector('#allow-pings').addEventListener('change', event => {
-  accountPreferences.allowPings = event.target.checked;
-  saveAccountPreferences();
-});
-document.querySelector('#dnd-button').addEventListener('click', () => {
-  accountPreferences.dndUntil = accountPreferences.dndUntil > Date.now()
-    ? 0 : Date.now() + DND_DURATION_MS;
-  saveAccountPreferences();
-});
-loadAccountPreferences();
-renderAccount();
-// Absolute timestamps restore availability correctly after reloads or suspended tabs.
-setInterval(() => {
-  renderAccount();
-  for (const status of document.querySelectorAll('.ping-availability')) {
-    const person = PEOPLE.find(candidate => candidate.id === status.dataset.personId);
-    if (!person) continue;
-    const availability = getPingAvailability(person);
-    status.textContent = availability.label;
-    status.className = `ping-availability${availability.allowed ? '' : ' unavailable'}`;
-    const ping = status.parentElement.querySelector('.card-actions button:last-child');
-    ping.disabled = !availability.allowed || pingedPeople.has(person.id);
-    ping.title = availability.allowed ? '' : availability.label;
-  }
-}, 1000);
 const pageTopics = (pageParams.get('topics') || '').split(',');
 const topicSearch = TOPIC_SEARCH.find(([token]) => pageTopics.includes(token));
 if (topicSearch) searchInput.value = topicSearch[1];
-renderPeople();
 if (POPUP_MODE) searchInput.focus();
+results.append(element('p', 'muted', 'Loading colleagues...'));
+refresh();
+setInterval(refresh, 2000);

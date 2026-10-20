@@ -6,7 +6,7 @@ import pytest
 
 from agent import panel as panel_module
 from agent.buffer import RingBuffer
-from agent.panel import PANEL_FILE, PanelWindow, panel_url
+from agent.panel import PANEL_PAGE, PanelWindow, panel_url
 from agent.pipeline import Action, Pipeline
 from agent.surfaces import Surface
 from conftest import FakeClock
@@ -40,14 +40,10 @@ def setup():
     return pipeline, panel, clock
 
 
-def test_panel_file_exists():
-    assert PANEL_FILE.is_file()
-
-
 def test_url_holds_only_vocabulary_topics():
     url = panel_url(["notice_period", "the user typed this", "country_BE"])
     query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
-    assert url.startswith("file:///")
+    assert url.startswith(PANEL_PAGE + "?")
     assert query == {"popup": ["1"], "topics": ["notice_period,country_BE"]}
 
 
@@ -95,7 +91,7 @@ def test_open_starts_browser_in_app_mode_and_closes_previous(monkeypatch):
     assert closed == [111]
     [args] = launched
     assert args[0] == "C:/browser.exe"
-    assert any(a.startswith("--app=file:///") and "notice_period" in a for a in args)
+    assert any(a.startswith(f"--app={PANEL_PAGE}") and "notice_period" in a for a in args)
     assert "--window-size=500,860" in args
     assert not any(a.startswith("--window-position") for a in args)
     assert any(a.startswith("--user-data-dir=") for a in args)

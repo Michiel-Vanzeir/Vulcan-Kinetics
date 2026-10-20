@@ -13,6 +13,7 @@ class CreateNodeIn(BaseModel):
     client_ids: list[str] = []    # Project only
     email: Optional[str] = None   # Person only
     phone: Optional[str] = None   # Person only
+    user_id: Optional[str] = None # Person only; the capture agent's emp id, used by /experts
 
 
 class LinkIn(BaseModel):

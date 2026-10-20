@@ -1,7 +1,9 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { createPreviewStore, servePreviewApi } from './preview-api.mjs';
 
 const PORT = 4173;
+const previewStore = createPreviewStore();
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html']],
   ['/index.html', ['index.html', 'text/html']],
@@ -18,11 +20,15 @@ const ASSETS = new Map([
 
 /** Serve only preview assets and proxy the fixed local health endpoint to avoid CORS issues. */
 async function servePreview(request, response) {
+  const pathname = new URL(request.url, 'http://localhost').pathname;
+  if (pathname.startsWith('/ui-api/')) {
+    await servePreviewApi(request, response, pathname, previewStore);
+    return;
+  }
   if (request.method !== 'GET') {
     response.writeHead(405, { Allow: 'GET' }).end('Method not allowed');
     return;
   }
-  const pathname = new URL(request.url, 'http://localhost').pathname;
   if (pathname === '/preview-health') {
     try {
       const health = await fetch('http://127.0.0.1:8000/health', {

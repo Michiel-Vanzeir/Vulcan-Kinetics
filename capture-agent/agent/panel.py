@@ -1,7 +1,8 @@
 """Open the whoknows people panel (people-panel.html) as a small popup window.
 
-Uses Edge or Chrome in app mode: no tabs or address bar. The page gets the field's topic
-tokens in its URL, never typed text. It runs on a separate browser profile, so it doesn't
+Uses Edge or Chrome in app mode: no tabs or address bar. The panel is served by the local
+preview server (`node preview-server.mjs` in the repo root), which also supplies its people.
+The page gets the field's topic tokens in its URL, never typed text. It runs on a separate browser profile, so it doesn't
 touch the user's own browser windows.
 
 Placement is done by us, not by the browser: once the window exists it is moved to the top
@@ -29,7 +30,7 @@ from topic_extractor import is_vocab_token
 
 log = logging.getLogger(__name__)
 
-PANEL_FILE = Path(__file__).resolve().parents[2] / "people-panel.html"
+PANEL_PAGE = "http://127.0.0.1:4173/people-panel.html"  # preview-server.mjs
 PANEL_TITLE = "whoknows people panel"  # the <title> of people-panel.html
 PROFILE_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "whoknows" / "panel-profile"
 WIDTH, HEIGHT = 500, 860  # at 100% scaling; Chrome windows are at least ~500 wide
@@ -76,10 +77,10 @@ def find_browser() -> str | None:
 
 
 def panel_url(topics: list[str]) -> str:
-    """file:// URL of the panel in popup mode. Only vocabulary topic tokens go in the URL."""
+    """URL of the panel in popup mode. Only vocabulary topic tokens go in the URL."""
     tokens = [t for t in topics if is_vocab_token(t)]
     query = urllib.parse.urlencode({"popup": "1", "topics": ",".join(tokens)})
-    return f"{PANEL_FILE.as_uri()}?{query}"
+    return f"{PANEL_PAGE}?{query}"
 
 
 def _find_panel_windows() -> list[int]:

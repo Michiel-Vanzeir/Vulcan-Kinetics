@@ -34,7 +34,8 @@ leaves the machine. Ctrl+Alt+W also asks the backend who knows the field's topic
 | Ctrl+Alt+W | "who knows?": opens the people panel as a popup (top right), pre-filtered on the field's topics, and emits a payload for the field now. Works anywhere; outside captured fields the panel opens unfiltered. |
 
 The popup is Thomas's `../people-panel.html` in Edge or Chrome app mode (own window, separate browser
-profile). Try it without the agent: `.venv/Scripts/python -m agent.panel notice_period country_BE`.
+profile), served by the preview server: start it first with `node preview-server.mjs` in the repo
+root (see `../README.md`), or the panel shows no colleagues. Try it without the agent: `.venv/Scripts/python -m agent.panel notice_period country_BE`.
 The panel also opens by itself when the backend answers a payload with a `doubt_alert` (the
 expertise filter decided you are struggling with this draft), unless a panel is already open.
 `--no-panel` turns both off.
