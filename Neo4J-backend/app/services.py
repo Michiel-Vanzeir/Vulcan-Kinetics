@@ -1,3 +1,4 @@
+"""Use cases over the people-network graph: validation, transactions, embeddings."""
 import uuid
 from . import hierarchy
 from . import config, repository as repo

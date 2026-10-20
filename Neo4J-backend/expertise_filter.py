@@ -1,27 +1,13 @@
-"""Expertise filter: turn capture-agent signal payloads into routing decisions.
-
-The capture agent (not in this module) emits one payload per trigger inside a focused
-text field. Every count field in a payload is CUMULATIVE since the context opened, so
-for a given context_id we take the latest snapshot and never sum successive payloads.
-
-Public surface:
-    SignalPayload           - validated dataclass + from_dict parser
-    ExpertiseFilter         - orchestrator; call .process(payload_dict)
-    is_expert(user, topic)  - decision + reasons for the pitch demo
-
-Stdlib-only; persistence uses sqlite3 with a `persons` table and a JSON `document`
-column (same shape as the people-network store in app/, which keeps scores with the
-moment they were last updated and decays them lazily on read/write).
-"""
+"""Signal-filter pillar: score capture-agent payloads and emit routing decisions."""
 from __future__ import annotations
 
 import json
 import math
 import sqlite3
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable
 
 
 # =============================================================================
@@ -115,11 +101,7 @@ _VALID_TRIGGERS = {"pause", "deletion_burst", "punctuation", "hedge",
 
 @dataclass
 class SignalPayload:
-    """One capture-agent payload for one focused text field.
-
-    Count fields are cumulative since the context opened or last reset, so the
-    aggregator keeps only the LATEST snapshot per context_id.
-    """
+    """One capture-agent payload. All count fields are cumulative per context_id."""
     # Housekeeping
     user_id: str
     context_id: str
@@ -168,14 +150,13 @@ class SignalPayload:
 
         surface = data.get("surface", "other")
         if surface not in SURFACES:
-            surface = "other"  # fallback per spec
+            surface = "other"
 
         topics = data.get("topics") or []
         if not isinstance(topics, list):
             raise ValueError("topics must be a list")
 
-        # Only accept known fields; drop anything else so a mis-sent key fails
-        # loudly instead of silently being stored.
+        # Only accept known fields; unknown keys would otherwise go unnoticed.
         kwargs: dict[str, Any] = {k: data[k] for k in cls.__dataclass_fields__
                                   if k in data}
         kwargs["surface"] = surface
@@ -187,13 +168,7 @@ class SignalPayload:
 # Per-context aggregator
 # =============================================================================
 class ContextAggregator:
-    """Keep the latest cumulative snapshot per context_id.
-
-    Also caches the most recent baseline per user_id (the capture agent sends a
-    baseline once per session but every payload still carries whatever it last
-    sent), and buffers results for contexts whose topics are still empty, so
-    they can be attached as soon as topics arrive.
-    """
+    """Latest cumulative snapshot per context_id, with per-user baseline cache."""
 
     def __init__(self) -> None:
         self._snapshots: dict[str, SignalPayload] = {}
@@ -201,23 +176,16 @@ class ContextAggregator:
         self.pending_contexts: dict[str, dict[str, Any]] = {}
 
     def ingest(self, payload: SignalPayload) -> SignalPayload:
-        """Replace the snapshot for this context_id with the newer payload.
-
-        Count fields are cumulative, so when a payload arrives out of order we
-        keep the one with the larger ts (and max() counts as a safety net).
-        """
+        """Keep the newer of the two snapshots for this context_id."""
         current = self._snapshots.get(payload.context_id)
-        if current is None or payload.ts >= current.ts:
-            snap = payload
-        else:
-            snap = current  # older payload: ignore
+        snap = payload if (current is None or payload.ts >= current.ts) else current
         self._snapshots[payload.context_id] = snap
         self._cache_baseline(payload)
         return snap
 
     def _cache_baseline(self, payload: SignalPayload) -> None:
-        """Only overwrite the cached baseline when the payload has one set,
-        so a later keystroke payload (without baseline) doesn't clear it."""
+        # Only overwrite when the payload actually carries a baseline, so a
+        # later keystroke payload without one doesn't clear it.
         if payload.baseline_avg_pause_ms <= 0 and payload.baseline_avg_deletion_rate <= 0:
             return
         self._baselines[payload.user_id] = (
@@ -284,6 +252,7 @@ def _paste_discount(ratio: float) -> float:
 
 def confidence_score(p: SignalPayload, baseline_pause_ms: int,
                      baseline_del_rate: float) -> float:
+    """How fluently this person handled this context, in [0, 1]."""
     cfg = CONFIG
     chars = p.current_message_char_count or p.chars_typed
     score = cfg["conf_base"]
@@ -302,6 +271,7 @@ def confidence_score(p: SignalPayload, baseline_pause_ms: int,
 
 
 def doubt_score(p: SignalPayload) -> float:
+    """How stuck this person looks on this context, in [0, 1]."""
     cfg = CONFIG
     minutes = max(1.0, p.context_age_ms / 60_000.0) / cfg["doubt_switch_rate_minutes"]
     q_weight = (cfg["doubt_question_mark_reply_weight"] if p.is_reply
@@ -318,8 +288,7 @@ def doubt_score(p: SignalPayload) -> float:
 
 
 def _doubt_reasons(p: SignalPayload) -> list[str]:
-    """Human-readable list of why we think this person is doubting.
-    Ordered strongest-first so the UI can show just the top one or two."""
+    """Up to three human-readable reasons, strongest-first, for the UI."""
     reasons: list[str] = []
     if p.hedge_words >= 2:
         reasons.append(f"{p.hedge_words} hedging phrases")
@@ -341,15 +310,13 @@ def _doubt_reasons(p: SignalPayload) -> list[str]:
 
 
 def direction(p: SignalPayload) -> str:
+    """Classify this context as 'answering', 'asking', or 'neutral'."""
     cfg = CONFIG
     cur = p.current_message_char_count
-    if p.is_reply and p.prior_message_char_count > 0:
-        if cur >= cfg["direction_long_reply_ratio"] * p.prior_message_char_count \
-                and p.question_marks_written == 0:
-            return "answering"
-    if (not p.is_reply) and p.question_marks_written > 0 \
-            and cur <= cfg["direction_short_asking_chars"]:
-        return "asking"
+    long_enough = cur >= cfg["direction_long_reply_ratio"] * p.prior_message_char_count
+    if p.is_reply and p.prior_message_char_count > 0 and long_enough \
+            and p.question_marks_written == 0:
+        return "answering"
     if p.question_marks_written > 0 and cur <= cfg["direction_short_asking_chars"]:
         return "asking"
     return "neutral"
@@ -374,7 +341,6 @@ def _blank_document() -> dict[str, Any]:
         "surfaces_seen": [],
         "last_baseline": None,   # {"pause_ms": int, "del_rate": float}
         "last_seen_ms": 0,
-        "total_contexts": 0,
         "total_pasted_chars": 0,
         "total_authored_chars": 0,
     }
@@ -431,9 +397,6 @@ class PersonStore:
         )
         self._conn.commit()
 
-    def all_user_ids(self) -> list[str]:
-        return [r[0] for r in self._conn.execute("SELECT user_id FROM persons")]
-
 
 # =============================================================================
 # Directory (profile enrichment)
@@ -453,8 +416,9 @@ def load_directory(path: str | Path) -> dict[str, dict[str, Any]]:
 # =============================================================================
 # ExpertiseFilter orchestrator
 # =============================================================================
-# Simple seniority mapping used only for the profile-relevance component of
-# is_expert; the directory may use any of these spellings or none at all.
+# Fallback seniority mapping for profile relevance; the directory may use any
+# of these spellings or none at all. Unknown seniority -> neutral 0.4 if the
+# profile exists, 0.0 otherwise.
 _SENIORITY_SCORE = {
     "intern": 0.1, "junior": 0.3, "associate": 0.4, "medior": 0.5, "mid": 0.5,
     "senior": 0.75, "principal": 0.9, "lead": 0.85, "manager": 0.7,
@@ -466,8 +430,7 @@ def _profile_relevance(profile: dict[str, Any] | None, topic: str) -> float:
     if not profile:
         return 0.0
     seniority = str(profile.get("seniority") or "").lower()
-    base = _SENIORITY_SCORE.get(seniority, 0.4 if profile else 0.0)
-    # Light title/department hint: words that overlap the topic nudge up.
+    base = _SENIORITY_SCORE.get(seniority, 0.4)
     hints = " ".join(str(profile.get(k) or "") for k in ("job_title", "department")).lower()
     topic_tokens = {t for t in topic.lower().replace("_", " ").split() if len(t) > 2}
     overlap = sum(1 for t in topic_tokens if t in hints)
@@ -475,22 +438,13 @@ def _profile_relevance(profile: dict[str, Any] | None, topic: str) -> float:
 
 
 class ExpertiseFilter:
-    """Consume capture-agent payloads and emit routable expert tips.
-
-    Everyone is tracked (we update the person document on every payload, asking
-    or answering) and expertise is attached per topic once topics arrive. The
-    payload identifies only one user_id, so the downstream `recipient` is None
-    unless a separate participant/thread mapping is supplied elsewhere.
-    """
+    """Consume capture-agent payloads and emit routable expert tips."""
 
     def __init__(self, store: PersonStore,
                  directory: dict[str, dict[str, Any]] | None = None,
-                 on_doubt_push: "callable | None" = None) -> None:
-        """`on_doubt_push`, if given, is called with the doubt_alert dict the
-        moment doubt crosses the push threshold for a context (respecting the
-        per-context cooldown). It's a one-way push to upstream: the capture
-        agent / content script uses it to open the side panel immediately.
-        """
+                 on_doubt_push: Callable[[dict[str, Any]], None] | None = None) -> None:
+        """Orchestrator. `on_doubt_push` fires once per push the moment doubt crosses
+        `push_doubt_threshold` for a context (subject to `push_cooldown_ms`)."""
         self._store = store
         self._directory = directory or {}
         self._agg = ContextAggregator()
@@ -501,17 +455,7 @@ class ExpertiseFilter:
     # ---- public API --------------------------------------------------------
     def process(self, payload_dict: dict[str, Any],
                 participants: list[str] | None = None) -> dict[str, Any] | None:
-        """Consume one capture-agent payload.
-
-        `participants` is the counterpart user_ids in the current thread or
-        channel (e.g. the Outlook thread's other recipients). When supplied,
-        the result also carries interaction events for the people-network
-        graph. When None, only the routing tip is produced.
-
-        Returns None when nothing is routable yet (topics not in, no qualifying
-        expert, no participants to attribute edges to). Otherwise returns
-        {"tip": tip_or_none, "interactions": [...]}.
-        """
+        """Consume one payload. Returns None, or {tip, interactions, doubt_alert}."""
         payload = SignalPayload.from_dict(payload_dict)
         snap = self._agg.ingest(payload)
         baseline = self._agg.baseline_for(payload.user_id)
@@ -523,24 +467,17 @@ class ExpertiseFilter:
             "paste_ratio": paste_ratio(snap),
         }
 
-        # Always update the person document - we track everyone.
         self._touch_person(snap, scores)
-
-        # Doubt push can fire before topics are known - the panel just needs
-        # to open; whichever topic surfaces later refines what it offers.
         doubt_alert = self._doubt_alert(snap, scores)
 
         if not snap.topics:
-            # Topics not available yet: buffer the latest scores so when a
-            # follow-up payload for this context_id arrives with topics we can
-            # emit downstream events backed by the full context history.
+            # Buffer the latest scores so a later payload for this context_id
+            # (once topics arrive) can emit evidence backed by this snapshot.
             self._agg.buffer_pending(snap.context_id, scores)
             if doubt_alert is None:
                 return None
             return {"tip": None, "interactions": [], "doubt_alert": doubt_alert}
 
-        # Topics arrived; drop any buffered scores for this context now that the
-        # live snapshot represents them.
         self._agg.pop_pending(snap.context_id)
 
         best: dict[str, Any] | None = None
@@ -564,13 +501,7 @@ class ExpertiseFilter:
 
     def _doubt_alert(self, snap: SignalPayload,
                      scores: dict[str, Any]) -> dict[str, Any] | None:
-        """Produce the upstream push signal: "this person is having doubts".
-
-        Fires only when doubt crosses the configured push threshold, respects
-        a per-context cooldown so one hesitant draft doesn't spam the panel,
-        and includes the small set of human-readable reasons the pitch demo
-        shows under the trigger. If a push callback was wired in, call it now.
-        """
+        """Upstream push: 'this person is having doubts'. Cooldown per context."""
         cfg = CONFIG
         if scores["doubt"] < cfg["push_doubt_threshold"]:
             return None
@@ -585,23 +516,21 @@ class ExpertiseFilter:
             "surface": snap.surface,
             "ts": snap.ts,
             "doubt": round(scores["doubt"], 3),
-            "topics": list(snap.topics),             # may be empty
+            "topics": list(snap.topics),
             "direction": scores["direction"],
             "reasons": _doubt_reasons(snap),
         }
         if self._on_doubt_push is not None:
+            # Orchestrator boundary: a bad callback shouldn't stop ingestion.
             try:
                 self._on_doubt_push(alert)
-            except Exception as e:
-                # The push is a hint, not a hard dependency; keep processing.
+            except Exception as e:  # noqa: BLE001
                 alert["push_error"] = type(e).__name__
         return alert
 
     def _primary_counterpart(self, participants: list[str] | None,
                              author: str) -> str | None:
-        """Pick a single recipient id for the UI card. For a 1:1 thread this is
-        the only other participant; for a group we just take the first one and
-        emit edges toward all of them (see `_build_interactions`)."""
+        """Pick one recipient id for the UI card; group threads use the first."""
         if not participants:
             return None
         others = [p for p in participants if p != author]
@@ -609,11 +538,7 @@ class ExpertiseFilter:
 
     def _build_interactions(self, snap: SignalPayload, scores: dict[str, Any],
                             participants: list[str] | None) -> list[dict[str, Any]]:
-        """Shape interactions so a people-network consumer (see app/network.py)
-        can turn them straight into weighted edges. One edge per counterpart,
-        per topic. Nothing is emitted when `participants` is missing - we won't
-        invent edges toward an unknown recipient.
-        """
+        """Weighted edges for the people-network graph, one per counterpart."""
         if not participants:
             return []
         others = [p for p in participants if p != snap.user_id]
@@ -635,34 +560,19 @@ class ExpertiseFilter:
                 and scores["paste_ratio"] < cfg["paste_hard_cap_ratio"]):
             weight = cfg["edge_compose_answer_weight"] * scores["confidence"]
             for recipient in others:
-                events.append({
-                    **base,
-                    "giver": snap.user_id,
-                    "receiver": recipient,
-                    "kind": "compose_answer",
-                    "weight": round(weight, 3),
-                })
+                events.append({**base, "giver": snap.user_id, "receiver": recipient,
+                               "kind": "compose_answer", "weight": round(weight, 3)})
 
         if scores["direction"] == "asking":
             weight = cfg["edge_asked_about_weight"]
             for other in others:
-                events.append({
-                    **base,
-                    "giver": other,       # others are presumed to know
-                    "receiver": snap.user_id,
-                    "kind": "asked_about",
-                    "weight": weight,
-                })
+                events.append({**base, "giver": other, "receiver": snap.user_id,
+                               "kind": "asked_about", "weight": weight})
 
         return events
 
     def is_expert(self, user_id: str, topic: str) -> tuple[bool, float, list[str]]:
-        """Decide whether `user_id` should be routed as an expert on `topic`.
-
-        Returns (bool, score, reasons). A person whose topic evidence is mostly
-        doubt or mostly pasted content never clears the threshold, regardless
-        of their profile.
-        """
+        """Return (is_expert, composite_score, human_readable_reasons)."""
         doc = self._store.get(user_id) or _blank_document()
         now_ms = int(time.time() * 1000)
         topic_entry = doc.get("topics", {}).get(topic, _blank_topic_entry())
@@ -706,6 +616,7 @@ class ExpertiseFilter:
 
     # ---- internals ---------------------------------------------------------
     def _touch_person(self, snap: SignalPayload, scores: dict[str, Any]) -> None:
+        """Update the person document on every payload, asker or answerer alike."""
         now_ms = snap.ts
         doc = self._store.get_or_create(snap.user_id, now_ms)
         if doc["profile"] is None:
@@ -716,23 +627,18 @@ class ExpertiseFilter:
         if bp or br:
             doc["last_baseline"] = {"pause_ms": bp, "del_rate": br}
         doc["last_seen_ms"] = max(doc["last_seen_ms"], now_ms)
-        # Totals are cumulative-per-context, so we take the max() rather than
-        # summing to avoid double-counting when several payloads land for the
-        # same context_id.
-        doc["total_pasted_chars"] = max(doc["total_pasted_chars"],
-                                        snap.pasted_char_count)
+        # max() rather than += so re-sent cumulative payloads don't double-count.
+        doc["total_pasted_chars"] = max(doc["total_pasted_chars"], snap.pasted_char_count)
         authored = max(0, snap.current_message_char_count - snap.pasted_char_count)
         doc["total_authored_chars"] = max(doc["total_authored_chars"], authored)
-        doc["total_contexts"] = max(doc["total_contexts"],
-                                    len({snap.context_id, *doc.get("topics", {}).keys()}))
         self._store.put(snap.user_id, doc, now_ms)
 
     def _update_topic(self, snap: SignalPayload, topic: str,
                       scores: dict[str, Any]) -> None:
+        """Credit expertise or doubt on `topic` for the author of this snapshot."""
         now_ms = snap.ts
         doc = self._store.get_or_create(snap.user_id, now_ms)
-        topics = doc.setdefault("topics", {})
-        entry = topics.setdefault(topic, _blank_topic_entry())
+        entry = doc.setdefault("topics", {}).setdefault(topic, _blank_topic_entry())
 
         cfg = CONFIG
         if scores["direction"] == "answering":
@@ -740,20 +646,18 @@ class ExpertiseFilter:
         elif scores["direction"] == "asking":
             entry["asking_count"] += 1
 
-        # Expertise evidence: answering + high confidence + low paste only.
+        # Expertise: answering + high confidence + low paste only.
         if (scores["direction"] == "answering"
                 and scores["confidence"] >= cfg["high_confidence_threshold"]
                 and scores["paste_ratio"] < cfg["paste_hard_cap_ratio"]):
-            decayed_prev = decayed(entry["expertise_evidence"],
-                                   entry["evidence_last_ms"], now_ms)
-            entry["expertise_evidence"] = decayed_prev + scores["confidence"]
+            prev = decayed(entry["expertise_evidence"], entry["evidence_last_ms"], now_ms)
+            entry["expertise_evidence"] = prev + scores["confidence"]
             entry["evidence_last_ms"] = now_ms
 
-        # Doubt evidence: high doubt (asker or not).
+        # Doubt: high doubt, asker or not.
         if scores["doubt"] >= cfg["high_doubt_threshold"]:
-            decayed_prev = decayed(entry["doubt_evidence"],
-                                   entry["doubt_last_ms"], now_ms)
-            entry["doubt_evidence"] = decayed_prev + scores["doubt"]
+            prev = decayed(entry["doubt_evidence"], entry["doubt_last_ms"], now_ms)
+            entry["doubt_evidence"] = prev + scores["doubt"]
             entry["doubt_last_ms"] = now_ms
 
         if snap.surface not in entry["surfaces"]:
@@ -767,6 +671,7 @@ class ExpertiseFilter:
 # =============================================================================
 def build_filter(db_path: str | Path = ":memory:",
                  directory_path: str | Path | None = None) -> ExpertiseFilter:
+    """Wire a PersonStore and optional directory into an ExpertiseFilter."""
     directory = load_directory(directory_path) if directory_path else {}
     return ExpertiseFilter(PersonStore(db_path), directory)
 
