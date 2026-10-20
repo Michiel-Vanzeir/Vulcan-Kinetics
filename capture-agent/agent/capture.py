@@ -36,13 +36,14 @@ def _now_ms() -> int:
 class Capture:
     """Runs the keyboard hook and a worker thread that resolves surfaces and drives the pipeline.
 
-    The hook callback only enqueues, because Windows drops low-level hooks that respond slowly.
+    Surface checks precede queueing. Slow or unresolved accessibility providers fail closed.
     """
 
-    def __init__(self, pipeline: Pipeline, allowed_surfaces: frozenset[str]):
+    def __init__(self, pipeline: Pipeline, allowed_surfaces: frozenset[str], policy=None):
         self._pipeline = pipeline
         self._allowed = allowed_surfaces
-        self._queue: queue.Queue[tuple[Action, str | None, int] | None] = queue.Queue()
+        self._policy = policy or (lambda: self._allowed)
+        self._queue = queue.Queue(maxsize=128)
         self._listener = keyboard.Listener(on_press=self._on_press, on_release=self._on_release)
         self._worker = threading.Thread(target=self._run_worker, daemon=True)
         self._ctrl = self._alt = self._shift = False
@@ -61,7 +62,12 @@ class Capture:
 
     def stop(self) -> None:
         self._listener.stop()
-        self._queue.put(None)
+        while not self._queue.empty():
+            try:
+                self._queue.get_nowait()
+            except queue.Empty:
+                break
+        self._queue.put_nowait(None)
         self._worker.join(timeout=2)
 
     # Hook thread: classify the key and enqueue, nothing else.
@@ -72,9 +78,27 @@ class Capture:
     def _on_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         if key is None or self._set_modifier(key, pressed=True):
             return
+        allowed = self._policy()
+        if not allowed:
+            return
+        # Resolve consent and sensitivity before a character enters our queue.
+        try:
+            started = time.monotonic()
+            with auto.UIAutomationInitializerInThread():
+                surface = focused_surface()
+        except Exception:
+            return
+        if time.monotonic() - started > 0.05:
+            self.dropped["slow accessibility provider"] += 1
+            return
+        if surface is None or surface.is_sensitive or surface.name not in allowed:
+            return
         action = self._classify(key)
         if action is not None:
-            self._queue.put((*action, _now_ms()))
+            try:
+                self._queue.put_nowait((*action, _now_ms(), surface))
+            except queue.Full:
+                self.dropped["queue full"] += 1
 
     def _set_modifier(self, key: keyboard.Key | keyboard.KeyCode | None, pressed: bool) -> bool:
         if key in _CTRL:
@@ -125,23 +149,29 @@ class Capture:
                     self._handle(*item)
                 now = _now_ms()
                 if now - last_tick >= TICK_INTERVAL_MS:
-                    self._pipeline.tick(now)
+                    try:
+                        focused = focused_surface()
+                    except Exception:
+                        focused = None
+                    if (focused and not focused.is_sensitive
+                            and focused.name in self._policy()
+                            and self._pipeline.accepts_focus(focused)):
+                        self._pipeline.tick(now)
+                    else:
+                        self._pipeline.suspend()
                     last_tick = now
 
-    def _handle(self, action: Action, char: str | None, ts_ms: int) -> None:
+    def _handle(self, action: Action, char: str | None, ts_ms: int, captured_surface) -> None:
         try:
             surface = focused_surface()
         except Exception:
             log.debug("Could not resolve focused surface", exc_info=True)
             surface = None
-        if surface is None:
-            self.dropped["not a work surface"] += 1
-        elif surface.is_sensitive:
-            self.dropped[f"sensitive field ({surface.name})"] += 1
-        elif surface.name not in self._allowed:
-            self.dropped[f"not opted in ({surface.name})"] += 1
-            surface = None
-        else:
-            self.captured[surface.name] += 1
+        if (surface is None or surface.id != captured_surface.id
+                or surface.is_sensitive or surface.name not in self._policy()
+                or _now_ms() - ts_ms > 1000):
+            self._pipeline.suspend()
+            return
+        self.captured[surface.name] += 1
         pasted = clipboard_text_length() if action == Action.PASTE and surface else 0
         self._pipeline.handle(surface, action, ts_ms, char=char, pasted_char_count=pasted)

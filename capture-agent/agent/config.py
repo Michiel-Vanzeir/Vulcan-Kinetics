@@ -6,7 +6,7 @@ wins). Every variable the agent reads:
     WHOKNOWS_BACKEND_URL  Backend base URL, e.g. http://localhost:5000. The agent POSTs to
                           <url>/analyze and <url>/experts. Unset: demo mode, nothing is sent.
     WHOKNOWS_USER_ID      User id sent with every payload. Default: emp_014 (a demo employee).
-    WHOKNOWS_AUTH_TOKEN   Optional bearer token sent to the backend. Default: none.
+    WHOKNOWS_AUTH_TOKEN   Employee bearer token required by the backend. Default: none.
 """
 
 import os
@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ENV_FILE = Path(__file__).resolve().parents[1] / ".env"
+ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 DEFAULT_USER_ID = "emp_014"
 
 
@@ -41,7 +42,8 @@ def _read_env_file(path: Path) -> dict[str, str]:
 
 def load_config(env: Mapping[str, str] = os.environ, env_file: Path = ENV_FILE) -> AgentConfig:
     """Agent settings from the environment, falling back to the .env file."""
-    values = {**_read_env_file(env_file), **env}
+    root_values = _read_env_file(ROOT_ENV_FILE) if env_file == ENV_FILE else {}
+    values = {**root_values, **_read_env_file(env_file), **env}
     url = values.get("WHOKNOWS_BACKEND_URL") or None
     return AgentConfig(
         backend_url=url.rstrip("/") if url else None,
@@ -209,4 +211,4 @@ SENSITIVE_FIELD_WORDS = (
 ALL_SURFACES = frozenset(PROCESS_SURFACES.values()) | frozenset(name for _, name in WEB_SURFACES)
 
 # Surfaces the employee has opted in to. Default: every known work surface.
-DEFAULT_ALLOWED_SURFACES = ALL_SURFACES
+DEFAULT_ALLOWED_SURFACES = frozenset()

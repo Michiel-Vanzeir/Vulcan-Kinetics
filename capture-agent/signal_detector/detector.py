@@ -154,6 +154,11 @@ class SignalDetector:
 
     # Public API
 
+    def reset(self) -> None:
+        """Forget all local text windows when capture consent or field trust is lost."""
+        self._contexts.clear()
+        self._password_contexts.clear()
+
     def handle_event(self, event: KeyEvent) -> SignalPayload | None:
         """Process one event. Returns a payload if a trigger fired, else None.
 

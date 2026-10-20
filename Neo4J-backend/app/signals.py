@@ -25,8 +25,10 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from flask import Blueprint, jsonify, request
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from flask import Blueprint, g, jsonify, request
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+
+from .catalog import valid_topic
 
 import expertise_filter
 
@@ -54,7 +56,7 @@ class SignalPayloadIn(BaseModel):
     TODO: deduplicate with expertise_filter.SignalPayload once the schema settles.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
     user_id: str = Field(pattern=_ID)
     context_id: str = Field(pattern=_ID)
@@ -85,6 +87,14 @@ class SignalPayloadIn(BaseModel):
     baseline_avg_deletion_rate: float = Field(default=0.0, ge=0)
     topics: list[Topic] = Field(default_factory=list, max_length=50)
 
+    @field_validator("topics")
+    @classmethod
+    def known_topics(cls, topics):
+        """Reject non-vocabulary strings at the backend boundary."""
+        if not all(valid_topic(topic) for topic in topics):
+            raise ValueError("Unknown topic token")
+        return topics
+
 
 class ExpertsIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -92,6 +102,27 @@ class ExpertsIn(BaseModel):
     topics: list[Topic] = Field(min_length=1, max_length=20)
     exclude_user_id: str | None = Field(default=None, pattern=_ID)
     limit: int = Field(default=5, ge=1, le=50)
+
+    _known_topics = field_validator("topics")(classmethod(SignalPayloadIn.known_topics.__func__))
+
+
+class PreferencesIn(BaseModel):
+    """Employee-owned capture and discoverability controls, defaulting to no collection."""
+
+    model_config = ConfigDict(extra="forbid")
+    capture_enabled: bool = False
+    allowed_surfaces: list[str] = Field(default_factory=list, max_length=50)
+    hidden_topics: list[Topic] = Field(default_factory=list, max_length=100)
+
+    _known_topics = field_validator("hidden_topics")(classmethod(SignalPayloadIn.known_topics.__func__))
+
+    @field_validator("allowed_surfaces")
+    @classmethod
+    def known_surfaces(cls, surfaces):
+        """Accept only consent surfaces understood by the scorer."""
+        if not all(surface in expertise_filter.SURFACES for surface in surfaces):
+            raise ValueError("Unknown surface")
+        return sorted(set(surfaces))
 
 
 # The filter's SQLite connection may only be used by the thread that created it, while Flask
@@ -121,6 +152,35 @@ def _process(payload: dict[str, Any]) -> dict[str, Any] | None:
     return _get_filter().process(payload)
 
 
+def _accept(payload: dict[str, Any]) -> dict:
+    """Check current consent and score atomically on the storage thread."""
+    consent = _preferences(payload["user_id"])
+    if not consent["capture_enabled"] or payload["surface"] not in consent["allowed_surfaces"]:
+        return {"error": "Capture is not enabled for this surface."}
+    payload["topics"] = [topic for topic in payload["topics"]
+                         if topic not in consent["hidden_topics"]]
+    return _process(payload) or {}
+
+
+def _preferences(user_id: str, changes: dict | None = None) -> dict:
+    """Read and update only the authenticated employee's persisted preferences."""
+    _get_filter()
+    doc = _store.get_or_create(user_id, 0)
+    if changes is not None:
+        doc["preferences"] = changes
+        _store.put(user_id, doc, 0)
+    return doc.get("preferences", PreferencesIn().model_dump())
+
+
+@bp.route("/preferences", methods=["GET", "POST"])
+def preferences():
+    """Persist consent independently of browser sessions and server restarts."""
+    changes = None
+    if request.method == "POST":
+        changes = PreferencesIn.model_validate(request.get_json(silent=True) or {}).model_dump()
+    return jsonify(_on_filter_thread(_preferences, g.user_id, changes))
+
+
 def _rank_experts(topics: list[str], exclude: str | None, limit: int) -> list[dict[str, Any]]:
     """Every known person the filter rates as an expert on one of the topics, best first."""
     flt = _get_filter()
@@ -129,11 +189,18 @@ def _rank_experts(topics: list[str], exclude: str | None, limit: int) -> list[di
         if user_id == exclude:
             continue
         for topic in topics:
+            doc = _store.get(user_id) or {}
+            if topic in doc.get("preferences", {}).get("hidden_topics", []):
+                continue
             is_expert, score, reasons = flt.is_expert(user_id, topic)
             if is_expert:
                 profile = (_store.get(user_id) or {}).get("profile")
                 experts.append(
                     {"user_id": user_id, "topic": topic, "score": round(score, 3),
+                     "evidence": {key: value for key, value in
+                                  doc.get("topics", {}).get(topic, {}).items()
+                                  if key in {"answering_count", "last_seen_ms", "surfaces"}},
+                     "assessment": "heuristic, not verified expertise",
                      "reasons": reasons, "profile": profile}
                 )
     experts.sort(key=lambda e: e["score"], reverse=True)
@@ -151,7 +218,11 @@ def analyze():
     never the payload.
     """
     payload = SignalPayloadIn.model_validate(request.get_json(force=True, silent=True) or {})
-    result = _on_filter_thread(_process, payload.model_dump()) or {}
+    if payload.user_id != g.user_id:
+        return jsonify({"error": "Payload identity does not match authenticated employee."}), 403
+    result = _on_filter_thread(_accept, payload.model_dump())
+    if "error" in result:
+        return jsonify(result), 403
     tip, doubt_alert = result.get("tip"), result.get("doubt_alert")
     log.info("received payload for %s: trigger=%s, %d topics, tip=%s, doubt=%s",
              payload.user_id, payload.trigger, len(payload.topics), tip is not None,
@@ -163,9 +234,11 @@ def analyze():
 def experts():
     """Ranked experts for a list of topic tokens. The request holds topic tokens only."""
     body = ExpertsIn.model_validate(request.get_json(force=True, silent=True) or {})
-    ranked = _on_filter_thread(_rank_experts, body.topics, body.exclude_user_id, body.limit)
+    ranked = _on_filter_thread(_rank_experts, body.topics, g.user_id, 1_000_000)
     log.info("experts request: %d topics, %d experts", len(body.topics), len(ranked))
-    return jsonify({"experts": ranked})
+    covered = {expert["topic"] for expert in ranked}
+    return jsonify({"experts": ranked[:body.limit],
+                    "knowledge_gaps": [topic for topic in body.topics if topic not in covered]})
 
 
 @bp.errorhandler(ValidationError)

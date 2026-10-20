@@ -65,6 +65,7 @@ CONFIG: dict[str, float] = {
     "high_confidence_threshold": 0.65,
     "high_doubt_threshold": 0.55,
     "expert_min_score": 0.6,
+    "expert_min_answer_contexts": 3,
 
     # Upstream push: when doubt crosses this threshold we send a signal back to
     # the capture agent asking it to open the side panel. The cooldown keeps
@@ -183,9 +184,10 @@ class ContextAggregator:
 
     def ingest(self, payload: SignalPayload) -> SignalPayload:
         """Keep the newer of the two snapshots for this context_id."""
-        current = self._snapshots.get(payload.context_id)
+        key = f"{payload.user_id}:{payload.context_id}"
+        current = self._snapshots.get(key)
         snap = payload if (current is None or payload.ts >= current.ts) else current
-        self._snapshots[payload.context_id] = snap
+        self._snapshots[key] = snap
         self._cache_baseline(payload)
         return snap
 
@@ -203,7 +205,8 @@ class ContextAggregator:
         return self._baselines.get(user_id, (0, 0.0))
 
     def snapshot(self, context_id: str) -> SignalPayload | None:
-        return self._snapshots.get(context_id)
+        matches = [snap for snap in self._snapshots.values() if snap.context_id == context_id]
+        return matches[0] if len(matches) == 1 else None
 
     def buffer_pending(self, context_id: str, scores: dict[str, Any]) -> None:
         self.pending_contexts[context_id] = scores
@@ -473,6 +476,12 @@ class ExpertiseFilter:
                 participants: list[str] | None = None) -> dict[str, Any] | None:
         """Consume one payload. Returns None, or {tip, interactions, doubt_alert}."""
         payload = SignalPayload.from_dict(payload_dict)
+        doc = self._store.get_or_create(payload.user_id, payload.ts)
+        last_ts = doc.setdefault("processed_contexts", {}).get(payload.context_id, -1)
+        if payload.ts <= last_ts:
+            return None
+        doc["processed_contexts"][payload.context_id] = payload.ts
+        self._store.put(payload.user_id, doc, payload.ts)
         snap = self._agg.ingest(payload)
         baseline = self._agg.baseline_for(payload.user_id)
 
@@ -489,12 +498,12 @@ class ExpertiseFilter:
         if not snap.topics:
             # Buffer the latest scores so a later payload for this context_id
             # (once topics arrive) can emit evidence backed by this snapshot.
-            self._agg.buffer_pending(snap.context_id, scores)
+            self._agg.buffer_pending(f"{snap.user_id}:{snap.context_id}", scores)
             if doubt_alert is None:
                 return None
             return {"tip": None, "interactions": [], "doubt_alert": doubt_alert}
 
-        self._agg.pop_pending(snap.context_id)
+        self._agg.pop_pending(f"{snap.user_id}:{snap.context_id}")
 
         best: dict[str, Any] | None = None
         for topic in snap.topics:
@@ -526,10 +535,11 @@ class ExpertiseFilter:
         # Rounded so sums that land exactly on the threshold (0.15 + 0.15) aren't lost to float error.
         if round(scores["doubt"], 6) < cfg["push_doubt_threshold"]:
             return None
-        last = self._last_push_ms.get(snap.context_id, 0)
+        push_key = f"{snap.user_id}:{snap.context_id}"
+        last = self._last_push_ms.get(push_key, 0)
         if snap.ts - last < cfg["push_cooldown_ms"]:
             return None
-        self._last_push_ms[snap.context_id] = snap.ts
+        self._last_push_ms[push_key] = snap.ts
 
         alert = {
             "user_id": snap.user_id,
@@ -595,6 +605,8 @@ class ExpertiseFilter:
     def is_expert(self, user_id: str, topic: str) -> tuple[bool, float, list[str]]:
         """Return (is_expert, composite_score, human_readable_reasons)."""
         doc = self._store.get(user_id) or _blank_document()
+        if topic in doc.get("preferences", {}).get("hidden_topics", []):
+            return False, 0.0, ["employee opted out of this topic"]
         now_ms = int(time.time() * 1000)
         topic_entry = doc.get("topics", {}).get(topic, _blank_topic_entry())
 
@@ -630,7 +642,12 @@ class ExpertiseFilter:
             reasons.append("blocked: mostly pasted content")
             return False, score, reasons
 
-        is_exp = score >= cfg["expert_min_score"] and expertise > 0
+        contexts = sum(credit.get("expertise", 0) > 0
+                       for credit in topic_entry.get("context_credits", {}).values())
+        minimum = int(cfg["expert_min_answer_contexts"])
+        if contexts < minimum:
+            reasons.append(f"at least {minimum} independent answer contexts required")
+        is_exp = score >= cfg["expert_min_score"] and expertise > 0 and contexts >= minimum
         if not is_exp and not reasons:
             reasons.append("not enough evidence yet")
         return is_exp, score, reasons
@@ -648,10 +665,14 @@ class ExpertiseFilter:
         if bp or br:
             doc["last_baseline"] = {"pause_ms": bp, "del_rate": br}
         doc["last_seen_ms"] = max(doc["last_seen_ms"], now_ms)
-        # max() rather than += so re-sent cumulative payloads don't double-count.
-        doc["total_pasted_chars"] = max(doc["total_pasted_chars"], snap.pasted_char_count)
+        totals = doc.setdefault("context_totals", {}).setdefault(snap.context_id,
+                                                                {"pasted": 0, "authored": 0})
         authored = max(0, snap.current_message_char_count - snap.pasted_char_count)
-        doc["total_authored_chars"] = max(doc["total_authored_chars"], authored)
+        # Sum independent drafts, but only credit the increase in cumulative snapshots.
+        doc["total_pasted_chars"] += max(0, snap.pasted_char_count - totals["pasted"])
+        doc["total_authored_chars"] += max(0, authored - totals["authored"])
+        totals["pasted"] = max(totals["pasted"], snap.pasted_char_count)
+        totals["authored"] = max(totals["authored"], authored)
         self._store.put(snap.user_id, doc, now_ms)
 
     def _update_topic(self, snap: SignalPayload, topic: str,
@@ -660,25 +681,35 @@ class ExpertiseFilter:
         now_ms = snap.ts
         doc = self._store.get_or_create(snap.user_id, now_ms)
         entry = doc.setdefault("topics", {}).setdefault(topic, _blank_topic_entry())
+        credit = entry.setdefault("context_credits", {}).setdefault(snap.context_id, {})
 
         cfg = CONFIG
-        if scores["direction"] == "answering":
+        if scores["direction"] == "answering" and not credit.get("answer_counted"):
             entry["answering_count"] += 1
-        elif scores["direction"] == "asking":
+            credit["answer_counted"] = True
+        elif scores["direction"] == "asking" and not credit.get("ask_counted"):
             entry["asking_count"] += 1
+            credit["ask_counted"] = True
 
         # Expertise: answering + high confidence + low paste only.
         if (scores["direction"] == "answering"
                 and scores["confidence"] >= cfg["high_confidence_threshold"]
                 and scores["paste_ratio"] < cfg["paste_hard_cap_ratio"]):
             prev = decayed(entry["expertise_evidence"], entry["evidence_last_ms"], now_ms)
-            entry["expertise_evidence"] = prev + scores["confidence"]
+            prior_credit = decayed(credit.get("expertise", 0.0), credit.get("expertise_ts", now_ms), now_ms)
+            increment = max(0.0, scores["confidence"] - prior_credit)
+            entry["expertise_evidence"] = prev + increment
+            credit["expertise"] = max(prior_credit, scores["confidence"])
+            credit["expertise_ts"] = now_ms
             entry["evidence_last_ms"] = now_ms
 
         # Doubt: high doubt, asker or not.
         if scores["doubt"] >= cfg["high_doubt_threshold"]:
             prev = decayed(entry["doubt_evidence"], entry["doubt_last_ms"], now_ms)
-            entry["doubt_evidence"] = prev + scores["doubt"]
+            prior_doubt = decayed(credit.get("doubt", 0.0), credit.get("doubt_ts", now_ms), now_ms)
+            entry["doubt_evidence"] = prev + max(0.0, scores["doubt"] - prior_doubt)
+            credit["doubt"] = max(prior_doubt, scores["doubt"])
+            credit["doubt_ts"] = now_ms
             entry["doubt_last_ms"] = now_ms
 
         if snap.surface not in entry["surfaces"]:

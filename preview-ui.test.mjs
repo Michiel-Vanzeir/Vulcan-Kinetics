@@ -27,6 +27,8 @@ class Element {
   setAttribute(name, value) { this.attributes[name] = value; }
   addEventListener(event, callback) { this.events[event] = callback; }
   focus() {}
+  get options() { return this.children; }
+  get selectedOptions() { return this.children.filter(option => option.selected); }
 }
 
 /** Traverse the UI's generated controls without duplicating their implementation. */
@@ -39,9 +41,15 @@ async function setup() {
   const replies = [];
   const store = createPreviewStore({ schedule: callback => replies.push(callback) });
   const nodes = new Map();
+  let capture = { capture_enabled: false, allowed_surfaces: [], hidden_topics: [] };
   const document = {
     createElement: tag => new Element(tag),
     addEventListener() {},
+    querySelectorAll(selector) {
+      const inputs = descendants(this.querySelector('#capture-surfaces'))
+        .filter(node => node.tag === 'input');
+      return selector.endsWith(':checked') ? inputs.filter(node => node.checked) : inputs;
+    },
     querySelector(selector) {
       const dynamic = [...nodes.values()].flatMap(descendants).find(node =>
         selector.startsWith('#') ? node.id === selector.slice(1)
@@ -53,10 +61,18 @@ async function setup() {
   };
   const context = vm.createContext({ document, AbortSignal, URLSearchParams, setTimeout,
     clearTimeout, location: { search: '' },
-    setInterval() {}, fetch: async (url, options) => {
+    setInterval() {}, fetch: async (url, options = {}) => {
       try {
+        if (url === '/topic-catalog.json') return { ok: true, json: async () =>
+          JSON.parse(readFileSync(new URL('./topic-catalog.json', import.meta.url), 'utf8')) };
         const path = url.replace('/ui-api', '');
         const body = options.body ? JSON.parse(options.body) : undefined;
+        if (path === '/capture-preferences') {
+          if (body) capture = body;
+          return { ok: true, json: async () => capture };
+        }
+        if (path === '/experts') return { ok: true, json: async () =>
+          ({ experts: [], knowledge_gaps: body.topics }) };
         const state = body === undefined ? store.snapshot() : store.mutate(`/ui-api${path}`, body);
         return { ok: true, json: async () => state };
       } catch (error) {
@@ -219,7 +235,7 @@ test('detection, pause/resume, retry and close/reopen controls work', async () =
   const detection = app.document.querySelector('#account-auto-detect');
   detection.checked = false;
   await detection.events.change({ target: detection });
-  assert.equal(app.store.snapshot().account.autoDetect, false);
+  assert.equal(app.store.snapshot().account.autoDetect, undefined);
   await app.click('#dnd-button');
   assert.equal(app.store.snapshot().account.pingable, false);
   assert.equal(app.document.querySelector('#dnd-button').textContent, 'Resume pings');
@@ -232,4 +248,54 @@ test('detection, pause/resume, retry and close/reopen controls work', async () =
   assert.equal(app.document.querySelector('#settings-view').hidden, false);
   await app.click('#retry');
   assert.equal(app.document.querySelector('#ui-error').hidden, true);
+});
+
+test('all agent topics remain visible as backend knowledge gaps', async () => {
+  const app = await setup();
+  vm.runInContext("pageParams.set('topics', 'notice_period,country_ES'); renderPeople();", app.context);
+  await new Promise(resolve => setImmediate(resolve));
+  const content = descendants(app.document.querySelector('.body'));
+  assert.ok(content.some(node => node.textContent === 'notice period'));
+  assert.ok(content.some(node => node.textContent === 'spain'));
+  assert.equal(content.filter(node => node.textContent ===
+    'Knowledge gap: no qualifying recent signals.').length, 2);
+  assert.equal(content.filter(node => node.tag === 'article').length, 0);
+});
+
+test('capture settings persist independently of synthetic account preferences', async () => {
+  const app = await setup();
+  const surfaces = app.document.querySelectorAll('#capture-surfaces input');
+  surfaces[0].checked = true;
+  const detection = app.document.querySelector('#account-auto-detect');
+  detection.checked = true;
+  await detection.events.change({ target: detection });
+  assert.equal(detection.checked, true);
+  assert.equal(surfaces[0].checked, true);
+  assert.equal(app.store.snapshot().account.autoDetect, undefined);
+  assert.match(app.document.querySelector('#capture-status').textContent, /selected desktop apps/);
+});
+
+test('compact popup changes real capture consent and preserves app and topic preferences', async () => {
+  const nodes = new Map();
+  const document = { querySelector(selector) {
+    if (!nodes.has(selector)) nodes.set(selector, new Element());
+    return nodes.get(selector);
+  } };
+  let preferences = { capture_enabled: false, allowed_surfaces: ['teams_desktop'],
+    hidden_topics: ['notice_period'] };
+  const context = vm.createContext({ document, URLSearchParams, AbortSignal,
+    location: { search: '' }, setInterval() {},
+    fetch: async (url, options = {}) => {
+      if (options.body) preferences = JSON.parse(options.body);
+      return { ok: true, json: async () => preferences };
+    } });
+  vm.runInContext(readFileSync(new URL('./popup.js', import.meta.url), 'utf8'), context);
+  await new Promise(resolve => setImmediate(resolve));
+  const toggle = document.querySelector('#auto-detect');
+  assert.equal(toggle.checked, false);
+  toggle.checked = true;
+  await toggle.events.change();
+  assert.equal(preferences.capture_enabled, true);
+  assert.deepEqual(preferences.allowed_surfaces, ['teams_desktop']);
+  assert.deepEqual(preferences.hidden_topics, ['notice_period']);
 });

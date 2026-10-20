@@ -1,6 +1,6 @@
 # whoknows capture agent
 
-Local agent that watches typing in work apps (desktop and browser), detects doubt signals and
+Local agent that watches typing in opted-in desktop work apps, detects doubt signals and
 topics, and sends only counts and topic tokens to the backend. Typed text never leaves the
 machine. Full spec: "Capture agent spec" in `../IDEA.md`. Windows only for now (UI Automation).
 
@@ -17,10 +17,11 @@ py -3.13 -m venv .venv
 ```sh
 .venv/Scripts/python -m agent                                  # demo mode: prints payloads, sends nothing
 .venv/Scripts/python -m agent --backend-url http://localhost:5000 --user-id emp_014
-.venv/Scripts/python -m agent --surfaces teams_desktop,gmail_web
+.venv/Scripts/python -m agent --surfaces teams_desktop
 ```
 
-Settings come from environment variables or `capture-agent/.env` (copy `.env.example`):
+Run `node configure-demo.mjs` at the repo root first. Settings come from root `.env`,
+`capture-agent/.env`, then environment variables (later values override earlier ones):
 `WHOKNOWS_BACKEND_URL`, `WHOKNOWS_USER_ID`, `WHOKNOWS_AUTH_TOKEN`, all documented in
 `agent/config.py`. Flags override them. Start the backend first: `cd Neo4J-backend && uv run python run.py`.
 
@@ -31,7 +32,7 @@ leaves the machine. Ctrl+Alt+W also asks the backend who knows the field's topic
 |---|---|
 | Enter | sends the message in chat apps (Teams, Slack, Google Chat); new line elsewhere |
 | Ctrl+Enter | sends the message anywhere |
-| Ctrl+Alt+W | "who knows?": opens the people panel as a popup (top right), pre-filtered on the field's topics, and emits a payload for the field now. Works anywhere; outside captured fields the panel opens unfiltered. |
+| Ctrl+Alt+W | Opens the people panel for the current opted-in desktop field and emits a derived payload. Disabled capture does not inspect keys. |
 
 The popup is Thomas's `../people-panel.html` in Edge or Chrome app mode (own window, separate browser
 profile), served by the preview server: start it first with `node preview-server.mjs` in the repo
@@ -40,9 +41,11 @@ The panel also opens by itself when the backend answers a payload with a `doubt_
 expertise filter decided you are struggling with this draft), unless a panel is already open.
 `--no-panel` turns both off.
 
-Browser tabs are captured only when the window title shows a known work web app.
-Private windows, personal profiles, the address bar, password fields and other
-sensitive fields (PIN, card, IBAN, ...) are always skipped. The lists live in `agent/config.py`.
+Capture starts off. In Account > Settings, select a desktop app and enable detection.
+The agent polls persisted backend consent and stops on expired consent or network failure.
+Browser capture is disabled: page titles cannot prove a trusted origin or work profile.
+Unresolved and sensitive fields are dropped before queueing; focus is checked again before
+processing. Slow accessibility providers cause dropped keys. See `../docs/trust-validation.md`.
 
 ## Test
 
@@ -64,7 +67,7 @@ keyboard hook -> focused field (UI Automation) -> pipeline
 
 | File | Role |
 |---|---|
-| `agent/capture.py` | Global keyboard hook. Classifies keys (text, backspace, paste, Enter, hotkey) and enqueues them; a worker thread resolves the focused field and drives the pipeline. Fails closed. |
+| `agent/capture.py` | Checks consent and field sensitivity before classifying and queueing keys. Queue is bounded; worker rechecks focus. Untrusted focus clears local text. |
 | `agent/pipeline.py` | Turns keys into `KeyEvent`s for the signal detector, handles focus switches and send/clear, adds topics to each payload (`extract_topics()`), hands it to `Transport.send()`. |
 | `agent/backend_payload.py` | Converts detector payloads into the backend's wire format (counts cumulative per context). |
 | `agent/transport.py` | **The only network path.** `send()` converts, checks (known keys, no free text, vocabulary topics only) and POSTs to `/analyze` on a background thread, one retry. `request_experts()` asks `/experts`. `_post()` is the one function that crosses the network. |

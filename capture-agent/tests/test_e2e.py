@@ -22,10 +22,17 @@ from app import create_app, signals  # noqa: E402
 
 @pytest.fixture
 def backend_url(monkeypatch):
+    monkeypatch.setenv("WHOKNOWS_AUTH_TOKEN", "e2e-token")
+    monkeypatch.setenv("WHOKNOWS_USER_ID", "emp_014")
     monkeypatch.setattr(signals, "FILTER_DB_PATH", ":memory:")
     monkeypatch.setattr(signals, "_filter", None)
     monkeypatch.setattr(signals, "_store", None)
-    server = make_server("127.0.0.1", 0, create_app(), threaded=True)
+    app = create_app()
+    with app.test_client() as client:
+        client.post("/preferences", json={"capture_enabled": True,
+                    "allowed_surfaces": ["teams_desktop"], "hidden_topics": []},
+                    headers={"Authorization": "Bearer e2e-token"})
+    server = make_server("127.0.0.1", 0, app, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{server.server_port}"
     server.shutdown()
@@ -46,7 +53,7 @@ def process_calls(monkeypatch):
 
 
 def test_payload_reaches_the_expertise_filter(backend_url, process_calls):
-    transport = Transport(AgentConfig(backend_url=backend_url, user_id="emp_014"))
+    transport = Transport(AgentConfig(backend_url=backend_url, user_id="emp_014", auth_token="e2e-token"))
     transport.send(make_payload())
     experts = transport.request_experts(["notice_period"])
     transport.close()

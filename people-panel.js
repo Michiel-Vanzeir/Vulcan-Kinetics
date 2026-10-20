@@ -11,6 +11,20 @@ let savingPreference = false;
 const drafts = new Map();
 const results = document.querySelector('.body');
 const searchInput = document.querySelector('#people-search');
+let catalog = [];
+let capturePreferences = null;
+let rankingKey = '';
+let ranking = null;
+let rankingError = '';
+let rankingSequence = 0;
+let usePageTopics = true;
+const DIRECTORY_IDS = { emp_021: 'sarah', emp_045: 'tom', emp_077: 'emma', emp_088: 'lucas' };
+
+/** Match vocabulary phrases at word boundaries so short aliases cannot match inside names. */
+function hasPhrase(text, phrase) {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}_])${escaped}($|[^\\p{L}\\p{N}_])`, 'iu').test(text);
+}
 
 // Popup mode: the capture agent opens this page as its own small window on Ctrl+Alt+W or when
 // the backend reports doubt, with ?popup=1&topics=notice_period,country_ES (topic tokens,
@@ -18,11 +32,6 @@ const searchInput = document.querySelector('#people-search');
 const pageParams = new URLSearchParams(location.search);
 const POPUP_MODE = pageParams.has('popup');
 // Topic tokens -> a search the synthetic fixtures understand, most specific topic first.
-const TOPIC_SEARCH = [
-  ['notice_period', 'notice'], ['year_end_bonus', 'bonus'], ['dismissal', 'termination'],
-  ['payslip', 'payroll'], ['PC_200', 'pc 200'], ['country_FR', 'france'],
-  ['country_BE', 'belgium'],
-];
 if (POPUP_MODE) document.documentElement.classList.add('popup');
 
 /** Show actionable API errors without losing the current screen or message draft. */
@@ -98,13 +107,16 @@ async function perform(control, action) {
 async function mutate(path, body) {
   const next = await request(path, body);
   applyState(next);
+  if (next.learning) {
+    const status = document.querySelector('#learning-status');
+    if (status) status.textContent = next.learning;
+  }
 }
 
 /** Keep controls synchronized with the server, including expired timed pauses. */
 function renderPreferences() {
   if (!state || savingPreference) return;
   document.querySelector('#allow-pings').checked = state.account.allowPings;
-  document.querySelector('#account-auto-detect').checked = state.account.autoDetect;
   const paused = state.account.dndUntil > Date.now();
   const pause = document.querySelector('#dnd-button');
   pause.textContent = paused ? 'Resume pings' : 'Pause pings';
@@ -170,6 +182,20 @@ function renderPeople() {
   if (!state) return;
   const scrollTop = results.scrollTop;
   results.replaceChildren();
+  const query = searchInput.value.toLowerCase().trim();
+  const tokens = [...new Set([
+    ...(usePageTopics ? (pageParams.get('topics') || '').split(',').filter(Boolean) : []),
+    ...catalog.filter(topic => query && [topic.token, topic.label, ...topic.aliases]
+      .some(alias => hasPhrase(query, alias))).map(topic => topic.token),
+    ...[['bonus', 'year_end_bonus'], ['notice', 'notice_period'], ['payroll', 'payslip']]
+      .filter(([term]) => query.split(/\W+/).includes(term)).map(([, token]) => token),
+    ...(query.match(/\bpc[ _]?(\d{3})\b/g) || []).map(value => `PC_${value.slice(-3)}`),
+  ])];
+  if (tokens.length) {
+    renderRankings(tokens);
+    return;
+  }
+  results.append(element('p', 'muted', 'Demo directory · search a topic to load backend matches.'));
   const matches = searchPeople(searchInput.value);
   if (!matches.length) {
     results.append(element('div', 'gap', 'No matching colleagues. Try a name or topic.'));
@@ -177,10 +203,52 @@ function renderPeople() {
   for (const topic of new Set(matches.map(person => person.topic))) {
     results.append(element('div', 'topic', topic));
     const people = matches.filter(person => person.topic === topic);
-    const best = people.find(person => !person.stale);
-    for (const person of people) results.append(createCard(person, person === best));
+    for (const person of people) results.append(createCard(person, false));
   }
   results.scrollTop = scrollTop;
+}
+
+/** Preserve every requested topic and show backend gaps without inventing a fallback match. */
+function renderRankings(tokens) {
+  const key = JSON.stringify(tokens.sort());
+  if (rankingKey !== key) {
+    rankingKey = key;
+    ranking = null;
+    rankingError = '';
+    const sequence = ++rankingSequence;
+    request('/experts', { topics: tokens, limit: 50 }).then(value => {
+      if (sequence !== rankingSequence) return;
+      ranking = value;
+      if (screen === 'people') renderPeople();
+    }).catch(error => {
+      if (sequence !== rankingSequence) return;
+      rankingError = error.message;
+      if (screen === 'people') renderPeople();
+    });
+  }
+  if (!ranking) {
+    results.append(element('p', 'gap', rankingError || 'Loading backend matches…'));
+    return;
+  }
+  for (const token of tokens) {
+    const label = catalog.find(topic => topic.token === token)?.label || token;
+    results.append(element('div', 'topic', label));
+    const experts = ranking.experts.filter(expert => expert.topic === token);
+    if (!experts.length) results.append(element('p', 'gap', 'Knowledge gap: no qualifying recent signals.'));
+    for (const [index, expert] of experts.entries()) {
+      const person = state.people.find(candidate => candidate.id === DIRECTORY_IDS[expert.user_id]);
+      if (!person) {
+        results.append(element('p', 'gap', `${expert.profile?.name || expert.user_id}: ${expert.reasons.join('; ')}. Demo chat unavailable.`));
+        continue;
+      }
+      results.append(createCard({ ...person, topic: label, live: true, stale: false,
+        evidence: `${expert.reasons.join('; ')}. Heuristic signal, not verified expertise.`,
+        count: expert.evidence.answering_count || 0,
+        recent: expert.evidence.last_seen_ms
+          ? new Date(expert.evidence.last_seen_ms).toLocaleDateString() : 'Unknown',
+      }, index === 0));
+    }
+  }
 }
 
 /** Recreate the reference expert card, evidence and trust signal layout. */
@@ -221,11 +289,11 @@ function createCard(person, best) {
   identity.append(nameRow,
     element('div', 'role', `${person.role} · ${person.country}`));
   who.append(createPortrait(person), identity);
-  if (best) card.append(element('div', 'badge', 'Best match'));
+  if (best) card.append(element('div', 'badge', 'Strongest signal'));
   const signals = element('dl', 'signals');
   signals.append(createStatistic('Last active', person.recent, person.stale ? 'old' : ''),
-    createStatistic('Cases handled', String(person.count)),
-    createStatistic('Vouches', String(person.vouches)));
+    createStatistic(person.live ? 'Answer contexts' : 'Demo activity', String(person.count)));
+  if (!person.live) signals.append(createStatistic('Demo vouches', String(person.vouches)));
   card.append(who, signals, details);
   const firstName = person.name.split(' ')[0];
   const availability = getPingAvailability(person);
@@ -361,19 +429,47 @@ async function openChat(personId, from = chatReturn) {
   message.value = drafts.get(personId) ?? (from === 'account' || messagesFor(personId).length ? ''
     : `Hi ${person.name.split(' ')[0]}, quick question about ${person.topic}: ${searchInput.value}`);
   message.addEventListener('input', () => drafts.set(personId, message.value));
+  let writing = { chars_typed: 0, chars_deleted: 0, pasted_char_count: 0,
+    fluency_run_seconds: 0, longest_fluency_run_seconds: 0, long_pauses: 0 };
+  let lastInput = 0;
+  let runStarted = 0;
+  message.addEventListener('beforeinput', event => {
+    const now = Date.now();
+    if (event.inputType === 'insertText') {
+      writing.chars_typed += event.data?.length || 0;
+      if (!lastInput || now - lastInput > 2000) {
+        if (lastInput && now - lastInput > 5000) writing.long_pauses++;
+        runStarted = now;
+      }
+      writing.fluency_run_seconds = (now - runStarted) / 1000;
+      writing.longest_fluency_run_seconds = Math.max(writing.longest_fluency_run_seconds,
+        writing.fluency_run_seconds);
+      lastInput = now;
+    } else if (event.inputType?.startsWith('delete')) writing.chars_deleted++;
+  });
+  message.addEventListener('paste', event => {
+    writing.pasted_char_count += event.clipboardData?.getData('text').length || 0;
+  });
   const send = element('button', 'btn', 'Send message');
   send.type = 'submit';
   const cancel = button('Back', 'btn ghost', () => navigate(chatReturn));
   const row = element('div', 'row');
   row.append(cancel, send);
   compose.append(message, row);
+  const learningStatus = element('p', 'muted');
+  learningStatus.id = 'learning-status';
+  learningStatus.setAttribute('role', 'status');
+  compose.append(learningStatus);
   compose.addEventListener('submit', event => {
     event.preventDefault();
     if (!message.value.trim()) { message.focus(); return; }
     const text = message.value;
     message.disabled = true;
     perform(send, async () => {
-      await mutate('/messages', { personId, text, intent });
+      await mutate('/messages', { personId, text, intent, writing });
+      writing = { chars_typed: 0, chars_deleted: 0, pasted_char_count: 0,
+        fluency_run_seconds: 0, longest_fluency_run_seconds: 0, long_pauses: 0 };
+      lastInput = 0;
       if (message.value === text) { message.value = ''; drafts.set(personId, ''); }
     }).finally(() => { message.disabled = false; message.focus(); });
   });
@@ -450,7 +546,8 @@ document.querySelector('#settings-back').addEventListener('click', () => navigat
 document.querySelector('#allow-pings').addEventListener('change', event =>
   savePreference(event.target, { allowPings: event.target.checked }));
 document.querySelector('#account-auto-detect').addEventListener('change', event =>
-  savePreference(event.target, { autoDetect: event.target.checked }));
+  saveCapture(event.target));
+document.querySelector('#save-capture').addEventListener('click', event => saveCapture(event.target));
 document.querySelector('#dnd-button').addEventListener('click', event => {
   if (state) savePreference(event.target, { pause: !(state.account.dndUntil > Date.now()) });
 });
@@ -464,10 +561,73 @@ document.addEventListener('keydown', event => {
   else if (screen === 'chat') navigate(chatReturn);
   else setPanelOpen(false);
 });
-const pageTopics = (pageParams.get('topics') || '').split(',');
-const topicSearch = TOPIC_SEARCH.find(([token]) => pageTopics.includes(token));
-if (topicSearch) searchInput.value = topicSearch[1];
+searchInput.addEventListener('input', () => { usePageTopics = false; });
 if (POPUP_MODE) searchInput.focus();
 results.append(element('p', 'muted', 'Loading colleagues...'));
 refresh();
+loadCapture();
 setInterval(refresh, 2000);
+
+/** Load the fixed topic vocabulary and employee-owned capture consent. */
+async function loadCapture() {
+  try {
+    catalog = await (await fetch('/topic-catalog.json')).json();
+    const select = document.querySelector('#hidden-topics');
+    select.replaceChildren(...catalog.map(topic => {
+      const option = element('option', '', topic.label);
+      option.value = topic.token;
+      return option;
+    }));
+    const surfaces = document.querySelector('#capture-surfaces');
+    for (const [value, label] of [['teams_desktop', 'Teams desktop'],
+      ['outlook_desktop', 'Outlook desktop'], ['word_desktop', 'Word desktop'],
+      ['other', 'Preview chat answers (derived counts only)']]) {
+      const row = element('label', 'ping-preference', label);
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.value = value;
+      row.append(checkbox);
+      surfaces.append(row);
+    }
+    capturePreferences = await request('/capture-preferences');
+    renderCapture();
+  } catch (error) {
+    document.querySelector('#capture-status').textContent = `Capture unavailable. ${error.message}`;
+  }
+  renderPeople();
+}
+
+/** Reflect only settings acknowledged by the backend. */
+function renderCapture() {
+  document.querySelector('#account-auto-detect').checked = capturePreferences.capture_enabled;
+  for (const control of document.querySelectorAll('#capture-surfaces input')) {
+    control.checked = capturePreferences.allowed_surfaces.includes(control.value);
+  }
+  for (const option of document.querySelector('#hidden-topics').options) {
+    option.selected = capturePreferences.hidden_topics.includes(option.value);
+  }
+  document.querySelector('#hidden-committees').value = capturePreferences.hidden_topics
+    .filter(token => /^PC_\d{3}$/.test(token)).join(', ');
+  document.querySelector('#capture-status').textContent = capturePreferences.capture_enabled
+    ? 'Capture enabled only in selected desktop apps. Browser capture is disabled.' : 'Capture is off.';
+}
+
+/** Persist explicit app opt-ins and topic exclusions; failed saves retain acknowledged consent. */
+async function saveCapture(control) {
+  await perform(control, async () => {
+    try {
+      capturePreferences = await request('/capture-preferences', {
+        capture_enabled: document.querySelector('#account-auto-detect').checked,
+        allowed_surfaces: [...document.querySelectorAll('#capture-surfaces input:checked')]
+          .map(input => input.value),
+        hidden_topics: [...document.querySelector('#hidden-topics').selectedOptions]
+          .map(option => option.value).concat(document.querySelector('#hidden-committees').value
+            .split(/[,\s]+/).filter(Boolean)),
+      });
+      rankingKey = '';
+    } finally {
+      if (capturePreferences) renderCapture();
+      else document.querySelector('#account-auto-detect').checked = false;
+    }
+  });
+}

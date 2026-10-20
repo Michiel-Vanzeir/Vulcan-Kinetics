@@ -1,4 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+const TOPICS = JSON.parse(readFileSync(new URL('./topic-catalog.json', import.meta.url), 'utf8'));
+
+/** Keep short topic aliases from matching inside unrelated words or names. */
+function hasPhrase(text, phrase) {
+  const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}_])${escaped}($|[^\\p{L}\\p{N}_])`, 'iu').test(text);
+}
 
 const DND_DURATION_MS = 50 * 60_000;
 const PEOPLE = [
@@ -28,7 +37,7 @@ const PEOPLE = [
 /** Keep synthetic UI interactions on this local server, separate from the expertise backend. */
 export function createPreviewStore({ now = Date.now, schedule = setTimeout } = {}) {
   const people = structuredClone(PEOPLE);
-  const preferences = { allowPings: true, autoDetect: true, dndUntil: 0 };
+  const preferences = { allowPings: true, dndUntil: 0 };
   const messages = [];
   const pings = [];
   const votes = {};
@@ -78,13 +87,12 @@ export function createPreviewStore({ now = Date.now, schedule = setTimeout } = {
     }
     if (path === '/ui-api/preferences') {
       for (const key of Object.keys(body)) {
-        if (!['allowPings', 'autoDetect', 'pause'].includes(key)) {
+        if (!['allowPings', 'pause'].includes(key)) {
           throw new ApiError(400, 'Unknown account preference.');
         }
         if (typeof body[key] !== 'boolean') throw new ApiError(400, 'Settings must be boolean.');
       }
       if ('allowPings' in body) preferences.allowPings = body.allowPings;
-      if ('autoDetect' in body) preferences.autoDetect = body.autoDetect;
       if ('pause' in body) preferences.dndUntil = body.pause ? now() + DND_DURATION_MS : 0;
     } else if (path === '/ui-api/pings' || path === '/ui-api/demo-incoming') {
       const person = personById(body.personId);
@@ -194,7 +202,7 @@ async function readJson(request) {
 }
 
 /** Protect browser mutations against cross-origin requests to the local demo account. */
-export async function servePreviewApi(request, response, path, store) {
+export async function servePreviewApi(request, response, path, store, backendRequest) {
   try {
     const host = request.headers.host;
     const port = request.socket.localPort;
@@ -202,13 +210,37 @@ export async function servePreviewApi(request, response, path, store) {
       throw new ApiError(403, 'Invalid preview host.');
     }
     let snapshot;
-    if (request.method === 'GET' && path === '/ui-api/state') {
+    const backendPath = { '/ui-api/experts': '/experts',
+      '/ui-api/capture-preferences': '/preferences' }[path];
+    if (backendPath) {
+      if (!backendRequest) throw new ApiError(503, 'Expertise backend is unavailable.');
+      if (request.method !== 'GET' && request.method !== 'POST') {
+        throw new ApiError(405, 'Unsupported backend request.');
+      }
+      if (request.method === 'POST' && request.headers.origin !== `http://${host}`) {
+        throw new ApiError(403, 'Open the UI on the same local preview address.');
+      }
+      try {
+        snapshot = await backendRequest(backendPath,
+          request.method === 'POST' ? await readJson(request) : undefined);
+      } catch (error) {
+        throw new ApiError(503, `Expertise backend unavailable. ${error.message}`);
+      }
+    } else if (request.method === 'GET' && path === '/ui-api/state') {
       snapshot = store.snapshot();
     } else if (request.method === 'POST') {
       if (request.headers.origin !== `http://${host}`) {
         throw new ApiError(403, 'Open the UI on the same local preview address.');
       }
-      snapshot = store.mutate(path, await readJson(request));
+      const body = await readJson(request);
+      snapshot = store.mutate(path, body);
+      if (path === '/ui-api/messages' && backendRequest && body.intent === 'reply') {
+        try {
+          snapshot.learning = await learnReply(snapshot, body, backendRequest);
+        } catch {
+          snapshot.learning = 'Message sent. Learning unavailable; no expertise credit was confirmed.';
+        }
+      }
     } else {
       throw new ApiError(405, 'Unsupported UI request.');
     }
@@ -220,4 +252,39 @@ export async function servePreviewApi(request, response, path, store) {
       { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
     response.end(JSON.stringify({ error: error instanceof ApiError ? error.message : 'UI API failed.' }));
   }
+}
+
+/** Learn only explicit answers to recorded questions, sending derived counts without chat text. */
+async function learnReply(snapshot, body, backendRequest) {
+  const sent = snapshot.messages.findLast(message => message.senderId === 'you'
+    && message.recipientId === body.personId);
+  const prior = snapshot.messages.findLast(message => message.senderId === body.personId
+    && message.createdAt <= sent.createdAt);
+  if (prior?.intent !== 'ask') return 'No question context: no answer signal sent.';
+  const consent = await backendRequest('/preferences');
+  if (!consent.capture_enabled || !consent.allowed_surfaces.includes('other')) {
+    return 'Answer learning is off in capture settings.';
+  }
+  const writing = body.writing || {};
+  const counts = {};
+  for (const key of ['chars_typed', 'chars_deleted', 'pasted_char_count',
+    'fluency_run_seconds', 'longest_fluency_run_seconds', 'long_pauses']) {
+    const value = writing[key] ?? 0;
+    if (!Number.isFinite(value) || value < 0 || value > 36000) {
+      throw new ApiError(400, 'Invalid writing measurement.');
+    }
+    counts[key] = key.endsWith('seconds') ? value : Math.floor(value);
+  }
+  const context = `${sent.text} ${prior.text}`.toLowerCase();
+  const topics = TOPICS.filter(topic => [topic.label, ...topic.aliases]
+    .some(alias => hasPhrase(context, alias)))
+    .map(topic => topic.token).filter(token => !consent.hidden_topics.includes(token));
+  await backendRequest('/analyze', { ...counts,
+    user_id: process.env.WHOKNOWS_USER_ID || 'emp_014', context_id: `reply_${prior.id}`,
+    ts: sent.createdAt, trigger: 'submit', surface: 'other', is_reply: true,
+    prior_message_char_count: prior.text.length, current_message_char_count: sent.text.length,
+    question_marks_written: (sent.text.match(/\?/g) || []).length,
+    topics: topics.slice(0, 50),
+  });
+  return 'Derived answer signal saved. This does not verify correctness.';
 }
