@@ -17,7 +17,7 @@ Maintenance rules are in `AGENTS.md`, section 7. In short:
 
 | | |
 |---|---|
-| **What** | A local capture agent (plus an optional browser extension) that notices when you hesitate while writing, or opens on a shortcut, and shows which colleagues know the topic, with trust signals. Raw text never leaves your machine. |
+| **What** | A local capture agent that notices when you hesitate while writing, or opens on a shortcut, and shows which colleagues know the topic, with trust signals. Raw text never leaves your machine. |
 | **Challenge** | SD Worx, Tectonic Hackathon finals: *"Can your solution stay trusted without becoming another task?"* |
 | **Deadline** | **16:00 sharp** on 2026-10-20 (hacking 09:00 to 16:00). |
 | **Deliverables** | Builderbase: short description, pitch deck (ppt/pdf), public GitHub repo link, screenshots of final Aikido scan. |
@@ -64,11 +64,11 @@ We are one of 32 finalist teams (out of 800+ participants).
 
 ## The core idea
 
-1. **Push, not pull.** The user never goes to a search page. Expertise comes to them in whatever app they're already writing in: mail, Teams, Slack, Word, a ticket.
+1. **Push, not pull.** The user never goes to a search page. Expertise comes to them in whatever app they're already writing in, desktop or browser: Gmail, Outlook, Teams, Slack, Word, a ticket.
 2. **Trust signals, not just names.** Every suggested expert shows how recently and how fluently they worked on the topic, what they authored, and who implicitly vouches for them. Old expertise is labelled as old.
 3. **Expertise learned from how people write, not from profiles.** The same typing signal that detects doubt also detects confidence: someone who writes fluently about a topic, answers questions on it, and authors documents about it knows it.
 4. **Local-first privacy.** Keystrokes are processed on the employee's machine. Only small derived events (topic ids, signal, fluency) cross the network. No sentences, no names, no content.
-5. **Consent built in.** Opt-in per app (surface), opt-out per topic. The topic opt-out is enforced in the backend, not just hidden in the UI.
+5. **Consent built in.** Opt-in per app (surface), opt-out per topic. Personal pages, private windows, passwords and other sensitive fields are never captured. The topic opt-out is enforced in the backend, not just hidden in the UI.
 6. **Knowledge gap.** When nobody has recent expertise on a topic, whoknows shows a gap instead of a weak name.
 
 ### How whoknows answers the extra challenge
@@ -106,19 +106,18 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | # | Feature | Status | Owner |
 |---|---|---|---|
 | 1 | Synthetic dataset: 15 to 20 employees with the demo patterns (fresh expert, stale expert, opted-out person, knowledge-gap topic) | planned | |
-| 2 | Capture agent: ring buffer + accessibility-API surface ids, password fields skipped, numbers/emails stripped | in progress (Michiel) | Michiel |
+| 2 | Capture agent: ring buffer + accessibility-API surface ids, password and sensitive fields skipped, numbers/emails stripped | in progress (Michiel) | Michiel |
 | 3 | Capture agent: signal detector (TYPING / HESITATING / STRUGGLING state machine per text field) | in progress (Michiel) | Michiel |
 | 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | in progress (Michiel) | Michiel |
 | 5 | Capture agent: single, auditable send path emitting derived payloads | in progress (Michiel) | Michiel |
-| 6 | Capture agent: Teams desktop watched end-to-end on one OS | in progress (Michiel) | Michiel |
+| 6 | Capture agent surfaces: desktop apps (Teams, Outlook, Word, PowerPoint, OneNote, Slack, Notion) and work web apps in any browser (Gmail, Outlook, Teams, Google Docs, Slack, Notion, Confluence, Jira, SharePoint, Zendesk, Salesforce, ServiceNow) | in progress (Michiel) | Michiel |
 | 7 | Manual hotkey trigger | in progress (Michiel) | Michiel |
 | 8 | Fixed vocabulary of 200 to 500 payroll-domain topic ids | planned | |
 | 9 | Backend `/analyze`: derived payload in, stored as event | planned | |
 | 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | planned | |
 | 11 | Expertise scoring: fluency, artifact weight, peer vouches, recency decay, knowledge-gap threshold | planned | |
 | 12 | Side panel with expert cards, evidence line, trust signals, "Ask [name]" | planned | |
-| 13 | Browser extension as optional companion (richer in-browser context) | planned | |
-| 14 | Consent UI: opt-in per surface, opt-out per topic | planned | |
+| 13 | Consent UI: opt-in per surface, opt-out per topic | planned | |
 
 ---
 
@@ -137,7 +136,7 @@ native apps                     3. Topic extractor (on triggers only)
                                 Side panel  <------------- ranked experts -------'
 ```
 
-**Why a local agent and not add-ins per app:** one installer covers every writing surface. No separate Chrome extension, Office Add-in, Teams app or Slack app to deploy. IT ships one signed MSI or PKG through its existing MDM. The browser extension stays as an optional companion for richer in-browser context, but the agent works without it.
+**Why a local agent and not add-ins per app:** one installer covers every writing surface, desktop apps and browsers alike. No Chrome extension, Office Add-in, Teams app or Slack app to deploy. IT ships one signed MSI or PKG through its existing MDM.
 
 The capture agent is the data source for the expertise graph. It has two jobs:
 
@@ -149,7 +148,9 @@ The capture agent is the data source for the expertise graph. It has two jobs:
 **Capture buffer**
 - Fixed-size ring buffer (about 4 KB), overwritten in place when full, so memory use stays constant.
 - Each entry holds a character, a timestamp and a surface id. The surface id ties keystrokes to the focused app and text field via the OS accessibility API.
-- Password fields detected via the accessibility API (`kSecureTextField` on macOS, `ES_PASSWORD` on Windows) are skipped entirely.
+- **What gets captured:** opted-in desktop work apps, and browser tabs only when the window title shows a known work web app (Gmail, Outlook, Teams, ...). Any other page (banking, shopping, personal sites), private/incognito windows and personal browser profiles are never captured. When the focused field can't be identified, the keystroke is dropped (fail closed).
+- Password fields detected via the accessibility API (`kSecureTextField` on macOS, `ES_PASSWORD` / UIA `IsPassword` on Windows) are skipped entirely.
+- Other sensitive fields are skipped too: fields whose label or id mentions PIN, card number, CVV, IBAN, national register number and similar, plus the browser address bar.
 - Numbers and email addresses are stripped from the window before extraction runs.
 
 **Topic extractor**
@@ -225,16 +226,16 @@ A fictional payroll company of 15 to 20 employees with deliberate expertise patt
 
 ## Hackathon demo scope
 
-- Browser extension plus a thin desktop agent on **one OS** (macOS preferred: the on-screen permission prompts reinforce the consent story).
-- Watch **one native app end-to-end: Teams desktop** (highest symbolic value for SD Worx).
-- Everything else (Outlook, Word, Slack, Notion, Windows support, MDM installer, artifact ingestion from Confluence/Jira) lives as architecture on the slide.
+- The capture agent alone (no extension) on **one OS**.
+- Captures desktop work apps and work web apps in the browser. Lead the demo with **Teams** (highest symbolic value for SD Worx) and Gmail or Outlook.
+- The rest (second OS, MDM installer, artifact ingestion from Confluence/Jira) lives as architecture on the slide.
 
 ## Non-negotiables
 
-- **Raw text never leaves the machine.** Only derived payloads cross the network. Password fields are never captured. Numbers and email addresses are stripped before extraction.
+- **Raw text never leaves the machine.** Only derived payloads cross the network. Password and sensitive fields, personal pages and private windows are never captured. Numbers and email addresses are stripped before extraction.
 - **One auditable send path:** all network calls from the agent go through a single function in a single file.
 - **Security (10%):** check authorisation server-side on every ID (IDOR is the obvious risk in a tool that exposes data about colleagues). Keep API keys in environment variables, never in the repo. Keep the endpoint surface small. Run Aikido early.
-- **Consent:** opt-in per surface, default off for personal browser profiles, banking and anything outside work. Opt-out per topic is filtered in the backend.
+- **Consent:** opt-in per surface; anything not on the work-surface list (personal browser profiles, banking, anything outside work) is never captured. Opt-out per topic is filtered in the backend.
 - **Honesty in the UI:** show stale or weak expertise as stale or weak. Never present a guess as certainty.
 - **Show only what works:** the pitch, deck and description must not claim features that aren't `done`.
 - **Demo without our own device:** every key moment must be capturable as a screenshot or short recording.
@@ -243,15 +244,13 @@ A fictional payroll company of 15 to 20 employees with deliberate expertise patt
 
 Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
-- Per-app add-ins (Office Add-in, Teams app, Slack app). The local agent replaces them.
-- Native capture for apps other than Teams desktop during the hackathon (slide only).
+- A browser extension or per-app add-ins (Office Add-in, Teams app, Slack app). The local agent covers browsers and desktop apps.
 - Sending, storing or logging raw typed text anywhere, including debug logs.
 - Routing incoming info@ emails to the right person (same engine, different input; mention it as a future extension in the pitch only).
 
 ## Open decisions
 
-- Agent OS: the spec prefers macOS, but at least one teammate is on Windows. Decide which machine runs the demo.
-- Agent language/runtime: _TBD_.
+- Agent OS: the spec prefers macOS; the agent is currently built for Windows (`capture-agent/surface_windows.py` is the only OS-specific file). Decide which machine runs the demo.
 - Backend framework: FastAPI or Flask. Storage: Neo4j (as in `Neo4J-backend/`) or plain JSON.
 - Scoring formula: the product zeroes a score when any factor is 0 (e.g. no vouches yet). Each factor likely needs a floor (e.g. `1 + vouches`). Also decide where "direction of the conversation" enters the formula; it's listed as a signal but isn't a factor yet.
 
@@ -307,3 +306,5 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Michiel): Added previous-round code in `previous-round/` as read-only reference. Starting fresh, not building on it.
 - 2026-10-20 (Michiel): Finals idea set: whoknows, carried over from the previous round and extended for the SD Worx extra challenge (zero-maintenance trust: expertise from work signals, vouches, automatic decay). Added document writing as a trigger next to replies.
 - 2026-10-20 (Michiel): Pivot from browser-only extension to a local capture agent covering all apps, with the extension as optional companion. Raw text stays on the machine; only derived payloads go to the backend. Hesitation detection is now a per-field state machine. Expertise is now inferred from fluency, answer direction, artifacts and implicit vouches; explicit "vouch on helpful answer" replaced by implicit vouches. Dropped the boundary against inferring expertise from behaviour, since the new design does exactly that, with local-first processing and per-surface consent as the safeguards. Demo: macOS agent watching Teams desktop.
+- 2026-10-20 (Michiel): Capture agent built in Python, Windows first (pynput + UI Automation), because that's the hardware we can test on. Joint committee numbers ("PC 200") are kept when numbers are scrubbed, since they are topics, not personal data.
+- 2026-10-20 (Michiel): Dropped the browser extension: the capture agent is the only client. Agent now also captures browsers, limited to known work web apps (Gmail, Outlook, Teams, ...) by window title, plus more desktop apps (Outlook, Word, PowerPoint, OneNote, Slack, Notion). Sensitive fields (PIN, card, IBAN, address bar, ...), private windows and personal profiles are skipped.
