@@ -39,11 +39,11 @@ def main():
     cux = node("Team", "Checkout UX", "Designs and builds the checkout experience.", [w(pay)])
     ios = node("Team", "iOS", "Builds the native iOS app.", [w(mob)])
     fraud = node("Subteam", "Fraud Detection", "Models and rules that flag fraudulent transactions.", [w(core)])
-    alice = node("Person", "Alice Nguyen", "ML engineer focused on fraud scoring models.", [w(fraud)], email="alice@example.com", phone="+1-555-0101")
-    bob = node("Person", "Bob Martin", "Backend engineer; owns the ledger and refund services.", [w(core)], email="bob@example.com")
-    carol = node("Person", "Carol Diaz", "Designer working on checkout flows and A/B tests.", [w(cux)], email="carol@example.com")
-    dave = node("Person", "Dave Okafor", "iOS engineer; Apple Pay and in-app purchases.", [w(ios)], email="dave@example.com")
-    erin = node("Person", "Erin Schulz", "Product manager for checkout and mobile payments.", [w(cux), w(ios)], email="erin@example.com", phone="+1-555-0105")
+    alice = node("Person", "Alice Nguyen", "ML engineer focused on fraud scoring models.", [w(fraud)], email="alice@example.com", phone="+1-555-0101", user_id="emp_001")
+    bob = node("Person", "Bob Martin", "Backend engineer; owns the ledger and refund services.", [w(core)], email="bob@example.com", user_id="emp_002")
+    carol = node("Person", "Carol Diaz", "Designer working on checkout flows and A/B tests.", [w(cux)], email="carol@example.com", user_id="emp_003")
+    dave = node("Person", "Dave Okafor", "iOS engineer; Apple Pay and in-app purchases.", [w(ios)], email="dave@example.com", user_id="emp_004")
+    erin = node("Person", "Erin Schulz", "Product manager for checkout and mobile payments.", [w(cux), w(ios)], email="erin@example.com", phone="+1-555-0105", user_id="emp_005")
 
     know("Fraud model v1 thresholds", "Fraud score threshold set at 0.8; transactions above are auto-declined.",
          ["fraud", "threshold", "model"], 3, "2026-01-10T09:00:00", "document", "docs://fraud-v1", [alice])

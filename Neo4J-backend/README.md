@@ -2,9 +2,18 @@
 
 The expertise graph behind whoknows (see `../IDEA.md`). It stores the org hierarchy, the
 knowledge people hold, and the clients projects serve, and answers "who should I talk to?"
-with semantic search over knowledge, ranked by person. `GET /who-knows` is the backend side
-of the `/experts` idea in `IDEA.md`; the scoring there (fluency, vouches, recency decay) is
-not built yet (see [Status](#status)).
+with semantic search over knowledge, ranked by person.
+
+Two expertise paths live in this service, and they are separate on purpose:
+
+- **Knowledge graph (`app/`, Neo4j):** `GET /who-knows?q=...` ranks people by the knowledge
+  they hold that matches a text query. This is the document-driven answer.
+- **Signal filter (`app/signals.py` + `expertise_filter.py`, SQLite):** `POST /analyze` and
+  `POST /experts` serve the capture agent, scoring expertise from live typing signals
+  (fluency, vouches, recency). The agent talks to this path.
+
+The bridge between them is `Person.user_id` (the agent's `emp_*` id), set on graph people so
+the same person can be referred to from either side. Unifying the two rankings is future work.
 
 All data here is synthetic. Never load real or confidential data (AGENTS.md).
 
@@ -70,7 +79,31 @@ All data here is synthetic. Never load real or confidential data (AGENTS.md).
 | POST | `/knowledge` | `add_knowledge` (embeds title + summary + keywords itself) |
 | POST | `/knowledge/<id>/revisions` | `revise_knowledge` (changed fields only; supersedes `<id>`) |
 | GET | `/nodes/<id>/knowledge?recursive=true&include_superseded=false` | `get_knowledge_for_node` |
-| GET | `/who-knows?q=...` | `who_knows` |
+| GET | `/who-knows?q=...` | `who_knows` (ranked people; see [Ranking](#ranking)) |
+| GET | `/pings` | `ping_counts` (people by how often they were surfaced; management view) |
+| POST | `/analyze`, `/experts` | capture-agent signal path (`app/signals.py`, separate scorer) |
+
+### Ranking
+
+`GET /who-knows` scores each person as the sum, over their matching knowledge, of
+`similarity * importance * recency * (1 + keyword_boost)`, then applies load balancing:
+
+- **Recency** decays older knowledge (half-life `RECENCY_HALF_LIFE_DAYS`), so stale expertise
+  ranks lower.
+- **Keyword boost** adds a small bump for each query word that is also one of a document's
+  keywords (hybrid lexical + vector; capped).
+- **Load balancing (ping count):** every person has a `ping_count`. The query increments it for
+  the top `WHO_KNOWS_PING_TOP_N` people it returns (the ones actually surfaced). Within a query,
+  anyone whose count sits well above the other candidates' average is down-weighted a little
+  (`PING_PENALTY_STRENGTH`), so repeated questions rotate across a close field instead of always
+  hitting one person. Each result carries `ping_count` and `ping_penalty` (0 = none). A clearly
+  dominant expert is only mildly reduced, not hidden. `GET /pings` exposes the counts for
+  management ("who is the single point of contact for X").
+- **Knowledge gap:** if the best match is weaker than `KNOWLEDGE_GAP_MIN_SIMILARITY`, the query
+  returns `[]` rather than a misleading name. (Meaningful with the real `ml` embeddings; the
+  `fake` backend gives every word some random overlap, so it rarely triggers there.)
+
+All knobs live in `app/config.py`. None of this calls a model.
 
 ## Graph model
 
@@ -125,14 +158,15 @@ Error bodies are `{"error": "...", "details": ...}`.
 What an integrator can rely on today, and what is still open.
 
 **Works:** the org hierarchy, clients, knowledge with holders/clients/supersedes, revisions,
-subtree, and `/who-knows` semantic search ranked by person with their org paths.
+subtree, `/who-knows` semantic search with recency decay, keyword boost, ping-count load
+balancing and knowledge-gap (see [Ranking](#ranking)), and `/pings` for the management view.
+The capture-agent signal path (`/analyze`, `/experts`) is wired in `app/signals.py`.
 
 **Stubbed / not built:**
 - `app/extraction.py` (document to graph) is a stub that raises `NotImplementedError`.
   See [Document ingestion](#document-ingestion-not-built-yet).
-- Ranking in `/who-knows` is `similarity * importance` only. The whoknows scoring in
-  `IDEA.md` (fluency, peer vouches, recency decay, knowledge-gap threshold, per-topic
-  opt-out) is **not** implemented.
+- The graph ranking and the signal filter are two separate scorers; they are not unified, and
+  `/who-knows` does not yet use fluency/vouches or per-topic opt-out.
 - No read-by-id or delete/unlink endpoints yet. Ids come from `seed.py` output. To build an
   ingestion client you will likely want `GET /knowledge/<id>` and a node lookup by name.
 - No auth. Fine for the local demo; note it before anything leaves localhost.
