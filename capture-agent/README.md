@@ -39,3 +39,4 @@ It prints capture counts every 5 s. Typed text is never printed, logged or writt
 | `agent/surface_windows.py` | Focused app (foreground process + window title) and text field (UI Automation runtime id, `IsPassword`, name). The only OS-specific file; a macOS version would replace it. |
 | `agent/buffer.py` | Fixed-size ring buffer (4096 keystrokes) with per-field reads. `window()` applies backspaces and scrubs emails and numbers, keeping joint committees like `PC_200`. |
 | `agent/config.py` | Buffer size, desktop and web surface lists, private-window markers, sensitive field words. |
+| `signal_detector/` | Keystroke events in, counted signal payloads out. Not wired to `agent/` yet; see its own README. |

@@ -89,7 +89,7 @@ We are one of 32 finalist teams (out of 800+ participants).
 ## User flow
 
 1. The user is writing in any app: a Teams reply, an email, a section of a document.
-2. They start struggling (see **Signal detector**), or press the shortcut.
+2. They start struggling (the backend's **Scoring module** decides this from the detector's signals), or press the shortcut.
 3. A side panel slides in with one card per detected topic.
 4. Each card shows the top expert, one line of evidence ("answered this 12 times, last 2 weeks ago"), trust signals, and an "Ask [name]" action.
 
@@ -107,13 +107,14 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 |---|---|---|---|
 | 1 | Synthetic dataset: 15 to 20 employees with the demo patterns (fresh expert, stale expert, opted-out person, knowledge-gap topic) | planned | |
 | 2 | Capture agent: ring buffer + accessibility-API surface ids, password and sensitive fields skipped, numbers/emails stripped | in progress (Michiel) | Michiel |
-| 3 | Capture agent: signal detector (TYPING / HESITATING / STRUGGLING state machine per text field) | in progress (Michiel) | Michiel |
+| 3 | Capture agent: signal detector (raw signal counts per trigger, per text field; see "Signal detector output") | in progress (Michiel) | Michiel |
 | 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | in progress (Michiel) | Michiel |
 | 5 | Capture agent: single, auditable send path emitting derived payloads | in progress (Michiel) | Michiel |
 | 6 | Capture agent surfaces: desktop apps (Teams, Outlook, Word, PowerPoint, OneNote, Slack, Notion) and work web apps in any browser (Gmail, Outlook, Teams, Google Docs, Slack, Notion, Confluence, Jira, SharePoint, Zendesk, Salesforce, ServiceNow) | in progress (Michiel) | Michiel |
 | 7 | Manual hotkey trigger | in progress (Michiel) | Michiel |
 | 8 | Fixed vocabulary of 200 to 500 payroll-domain topic ids | planned | |
-| 9 | Backend `/analyze`: derived payload in, stored as event | planned | |
+| 9 | Backend `/analyze`: signal payload in, stored as event | planned | |
+| 9b | Backend scoring module: TYPING / HESITATING / STRUGGLING state per text field, from signal payloads | planned | _teammate TBD_ |
 | 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | planned | |
 | 11 | Expertise scoring: fluency, artifact weight, peer vouches, recency decay, knowledge-gap threshold | planned | |
 | 12 | Side panel with expert cards, evidence line, trust signals, "Ask [name]" | planned | |
@@ -128,13 +129,18 @@ System diagram: [`docs/Structure.png`](docs/Structure.png). More team reference 
 ```
 USER'S MACHINE                  LOCAL CAPTURE AGENT                       whoknows BACKEND
 Gmail, Teams, Outlook,  keys    1. Ring buffer (~4 KB, in memory)
-Word, Slack, Notion,   ------>  2. Signal detector (state per text field)
-native apps                     3. Topic extractor (on triggers only)
+Word, Slack, Notion,   ------>  2. Signal detector (raw counts per trigger,
+native apps                        per text field)
+                                3. Topic extractor (on triggers only)
                                 4. Discard raw text
-                                   { user_id, topics, signal,      --->   /analyze  (store event)
-                                     surface, fluency, ts }               /experts  (rank people)
+                                   signal payload (counts,          --->  /analyze: scoring module
+                                   categories, topic ids)                   (TYPING / HESITATING /
+                                                                            STRUGGLING) + expertise graph
+                                                                          /experts  (rank people)
                                 Side panel  <------------- ranked experts -------'
 ```
+
+The agent measures; the backend interprets. The detector only counts things (pauses, deletions, hedge words, ...). The backend's scoring module turns those counts into a hesitation state and expertise scores. Doing it this way means expertise scoring can use raw signals across sessions, and the state machine can be retuned by replaying stored payloads. Privacy is the same either way, because the payload holds only counts and categories.
 
 **Why a local agent and not add-ins per app:** one installer covers every writing surface, desktop apps and browsers alike. No Chrome extension, Office Add-in, Teams app or Slack app to deploy. IT ships one signed MSI or PKG through its existing MDM.
 
@@ -150,7 +156,7 @@ The capture agent is the data source for the expertise graph. It has two jobs:
 - Each entry holds a character, a timestamp and a surface id. The surface id ties keystrokes to the focused app and text field via the OS accessibility API.
 - **What gets captured:** opted-in desktop work apps, and browser tabs only when the window title shows a known work web app (Gmail, Outlook, Teams, ...). Any other page (banking, shopping, personal sites), private/incognito windows and personal browser profiles are never captured. When the focused field can't be identified, the keystroke is dropped (fail closed).
 - Password fields detected via the accessibility API (`kSecureTextField` on macOS, `ES_PASSWORD` / UIA `IsPassword` on Windows) are skipped entirely.
-- Other sensitive fields are skipped too: fields whose label or id mentions PIN, card number, CVV, IBAN, national register number and similar, plus the browser address bar.
+- Other sensitive fields are skipped too: fields whose label or id mentions credentials (PIN, verification code, ...), payment cards, bank accounts or national ids (in EN/NL/FR/DE), plus the browser address bar.
 - Numbers and email addresses are stripped from the window before extraction runs.
 
 **Topic extractor**
@@ -165,36 +171,114 @@ The capture agent is the data source for the expertise graph. It has two jobs:
 - Matches against a fixed vocabulary of 200 to 500 payroll-domain terms (e.g. `notice_period`, `PC_200`, `year_end_bonus`, `country_ES`, `meal_vouchers`) using substring and stem matching, plus a small named-entity pass for countries and PC numbers.
 - Output is a subset of the vocabulary, never free text. The sentence never leaves memory.
 
-**Signal detector**
+**Signal detector** (agent, `capture-agent/signal_detector/`)
 
-Hesitation lasts longer than one window, so detection is stateful per focused text field.
+- Turns a stream of keystroke events into **counted signals per compose context** (one focused text field in one app). It doesn't interpret them: no hesitation labels.
+- Emits a signal payload when a trigger fires: pause > 800 ms, deletion burst (> 3 backspaces in < 500 ms), punctuation (`.` `?` `!` newline), a completed hedge word, a completed placeholder, idle flush every 10 s, manual hotkey, or the field being sent/cleared.
+- Hedge words: about 300 phrases in EN/NL/FR/DE in `hedges.yaml`, matched on whole words when the word is completed. Matching ignores case, accents and apostrophes, and costs about 4 µs per check regardless of list size.
+- Placeholders: `[...]`, `<...>`, `xxx` and longer, `???` and longer, and a trailing `...` followed by a pause > 2 s.
+- Numbers and emails are masked before any lexical detection. They count toward total `chars_typed`, but never toward hedge words, placeholders or punctuation triggers.
+- Pastes count only as `paste_events` and `pasted_char_count`, never as typing, fluency or lexical content.
+- Password fields are hard-skipped from `focus_in` to `focus_out`: no state is created and nothing is emitted.
+- State is kept per context. Switching focus pauses the context's state and returning resumes it. Sending or clearing the field resets it.
+- Keeps a rolling per-user baseline (average pause, deletion rate), included once per session and whenever it shifts by more than 20%.
+
+**Scoring module** (backend, teammate)
+
+Consumes signal payloads and labels each compose context. Hesitation lasts longer than one payload, so the state is kept per context.
 
 | State | Meaning | Entered when |
 |---|---|---|
 | `TYPING` | Baseline, no signal | Start; or resolution (below) |
 | `HESITATING` | Soft signal, nothing surfaced | Pause > 800 ms while TYPING |
-| `STRUGGLING` | Payload emitted, side panel opens | HESITATING escalates (below) |
+| `STRUGGLING` | Side panel opens with experts | HESITATING escalates (below) |
 
 - **Escalation** (HESITATING to STRUGGLING) on any of: another pause within 10 s, a deletion burst, a hedge word, or still on the same sentence after 15 s.
 - **Resolution** (back to TYPING) when the sentence is completed and sent, or after > 20 s of fluent typing.
-- Each focused text field has its own state. Switching apps pauses that state; returning resumes it. Clearing or sending the field resets it.
+- A `submit` payload resets the context.
 
-**What crosses the network**
+### Signal detector output
 
-Only derived payloads, about 200 bytes per event. No sentences, no names, no content.
+> **Draft.** Written from the detector brief because the planning-doc list wasn't in the repo. Reconcile with the planning doc and then remove this note.
+
+This list is **the contract** between the detector and every downstream module (scoring, expertise graph). The signal payload is what crosses the network to the backend. Counters cover the period since the previous payload of the same context.
+
+**Housekeeping**
+- `schema_version`: payload format version
+- `payload_seq`: increasing sequence number per agent run
+- `ts`: unix ms when the payload was built
+- `user_id`, `device_id`, `agent_version`, `os`: from agent config, constant per run
+
+**Surface**
+- `surface`: surface category, e.g. `outlook_desktop`, `gmail_web`
+- `context_id`: opaque id of the compose context (focus session of one field)
+
+**Timing**
+- `trigger`: `pause` | `deletion_burst` | `punctuation` | `hedge_word` | `placeholder` | `idle_flush` | `manual` | `submit`
+- `gap_before_trigger_ms`: time since the previous keystroke when the trigger fired
+- `pause_count`: pauses > 800 ms
+- `longest_pause_ms`
+- `mean_interkey_ms`: mean gap between keystrokes, gaps ≥ 10 s excluded (null if fewer than 2 keystrokes)
+- `active_typing_ms`: sum of gaps < 800 ms
+
+**Deletions**
+- `backspaces`, `deletes`
+- `deletion_bursts`
+- `longest_deletion_run`: most consecutive deletion keys
+- `deletion_rate`: deletions per typed char
+
+**Fluency**
+- `fluency_run_seconds`: length of the current uninterrupted typing run (no pause > 800 ms, deletion, hedge word or paste)
+- `longest_fluency_run_seconds`
+
+**Lexical**
+- `chars_typed`: all typed chars, including masked numbers and emails
+- `content_chars`: typed chars excluding masked tokens
+- `masked_tokens`: number of number/email tokens masked
+- `sentence_ends`: `.` `!` `?` or newline outside masked tokens
+- `question_marks`
+- `hedge_words`, plus `hedge_words_by_language`: counts per language code (`en`, `nl`, `fr`)
+- `placeholders`, plus `placeholders_by_kind`: counts per `bracket`, `angle`, `x_run`, `question_run`, `trailing_ellipsis`
+- `topics`: topic ids from the fixed vocabulary (empty until the topic extractor is wired in)
+
+**Context**
+- `is_reply`, `prior_message_char_count`: from the capture agent, when known
+- `paste_events`, `pasted_char_count`
+- `focus_switches`: times this context was left and resumed
+- `focus_session_ms`: focused time in this context so far
+
+**Baseline** (null unless included in this payload)
+- `baseline_avg_pause_ms`, `baseline_avg_deletion_rate`
+
+**Signals explicitly NOT sent**
+- Typed characters, words or sentences, in any form (including hashes or fragments)
+- Which hedge word or placeholder matched (only counts per language/kind)
+- Pasted content, numbers, email addresses
+- Window titles, URLs, field labels or names
+- Per-keystroke timings (only aggregates)
+- Clipboard or screen content
+
+Example (about 600 bytes as JSON, nulls included):
 
 ```json
 {
-  "user_id": "u_1234",
-  "topics": ["notice_period", "country_ES"],
-  "signal": "struggling",
-  "surface": "outlook_desktop",
-  "fluency": 0.3,
-  "ts": 1729512345
+  "schema_version": 1, "payload_seq": 42, "ts": 1729512345000,
+  "user_id": "u_1234", "device_id": "d_77", "agent_version": "0.1.0", "os": "windows",
+  "surface": "outlook_desktop", "context_id": "c_9f2",
+  "trigger": "hedge_word", "gap_before_trigger_ms": 140, "pause_count": 2,
+  "longest_pause_ms": 1900, "mean_interkey_ms": 185.0, "active_typing_ms": 5200,
+  "backspaces": 6, "deletes": 0, "deletion_bursts": 1, "longest_deletion_run": 4, "deletion_rate": 0.15,
+  "fluency_run_seconds": 1.2, "longest_fluency_run_seconds": 4.8,
+  "chars_typed": 44, "content_chars": 40, "masked_tokens": 1, "sentence_ends": 0, "question_marks": 0,
+  "hedge_words": 1, "hedge_words_by_language": {"nl": 1}, "placeholders": 0, "placeholders_by_kind": {},
+  "topics": [],
+  "is_reply": true, "prior_message_char_count": 320, "paste_events": 0, "pasted_char_count": 0,
+  "focus_switches": 1, "focus_session_ms": 31000,
+  "baseline_avg_pause_ms": null, "baseline_avg_deletion_rate": null
 }
 ```
 
-The code path from keystrokes to network is **one function, auditable in a single file**. Local-first processing is an architectural guarantee, not a promise.
+The code path from keystrokes to network is **one function, auditable in a single file**: `build_payload()` in `capture-agent/signal_detector/detector.py` is the only producer of this payload. Local-first processing is an architectural guarantee, not a promise.
 
 ### Expertise graph (backend)
 
@@ -252,6 +336,8 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
 - Agent OS: the spec prefers macOS; the agent is currently built for Windows (`capture-agent/surface_windows.py` is the only OS-specific file). Decide which machine runs the demo.
 - Backend framework: FastAPI or Flask. Storage: Neo4j (as in `Neo4J-backend/`) or plain JSON.
+- Signal list: the "Signal detector output" section is a draft. Reconcile it with the planning doc.
+- Wiring: the capture agent's keyboard hook doesn't feed the signal detector yet, and nothing sends payloads to `/analyze` yet.
 - Scoring formula: the product zeroes a score when any factor is 0 (e.g. no vouches yet). Each factor likely needs a floor (e.g. `1 + vouches`). Also decide where "direction of the conversation" enters the formula; it's listed as a signal but isn't a factor yet.
 
 ---
@@ -308,3 +394,5 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Michiel): Pivot from browser-only extension to a local capture agent covering all apps, with the extension as optional companion. Raw text stays on the machine; only derived payloads go to the backend. Hesitation detection is now a per-field state machine. Expertise is now inferred from fluency, answer direction, artifacts and implicit vouches; explicit "vouch on helpful answer" replaced by implicit vouches. Dropped the boundary against inferring expertise from behaviour, since the new design does exactly that, with local-first processing and per-surface consent as the safeguards. Demo: macOS agent watching Teams desktop.
 - 2026-10-20 (Michiel): Capture agent built in Python, Windows first (pynput + UI Automation), because that's the hardware we can test on. Joint committee numbers ("PC 200") are kept when numbers are scrubbed, since they are topics, not personal data.
 - 2026-10-20 (Michiel): Dropped the browser extension: the capture agent is the only client. Agent now also captures browsers, limited to known work web apps (Gmail, Outlook, Teams, ...) by window title, plus more desktop apps (Outlook, Word, PowerPoint, OneNote, Slack, Notion). Sensitive fields (PIN, card, IBAN, address bar, ...), private windows and personal profiles are skipped.
+- 2026-10-20 (Michiel): Split hesitation detection: the agent's signal detector now emits raw counts per trigger (no labels), and the TYPING/HESITATING/STRUGGLING state machine moved to a backend scoring module (teammate). The full signal payload is what crosses the network, so scoring can use signals across sessions and be retuned by replay. Added the "Signal detector output" contract (draft).
+- 2026-10-20 (Michiel): Hedge list grown from about 30 to about 300 phrases and German added (SD Worx operates in DE). Matching is now spelling-tolerant (accents, apostrophes) and checked against neutral business sentences for false hits. Sensitive-field and private-window detection extended to NL/FR/DE labels and browser UIs; more work web apps recognised.
