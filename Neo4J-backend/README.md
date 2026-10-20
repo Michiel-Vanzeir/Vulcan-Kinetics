@@ -30,6 +30,8 @@ All data here is synthetic. Never load real or confidential data (AGENTS.md).
    uv sync                                             # creates .venv from uv.lock
    cp env.example .env                                 # Windows: copy env.example .env
    ```
+   Don't install into this `.venv` with pip: uv and pip overwrite each other's packages
+   there (seen as `ImportError: cannot import name 'ArgsKwargs'` from pydantic_core).
    Then choose an embedding backend:
    - **Real embeddings:** `uv sync --extra ml` (large: installs torch; the first
      call also downloads `all-MiniLM-L6-v2`, ~90 MB).
@@ -82,6 +84,7 @@ All data here is synthetic. Never load real or confidential data (AGENTS.md).
 | GET | `/who-knows?q=...` | `who_knows` (ranked people; see [Ranking](#ranking)) |
 | GET | `/pings` | `ping_counts` (people by how often they were surfaced; management view) |
 | POST | `/analyze`, `/experts` | capture-agent signal path (`app/signals.py`, separate scorer) |
+| GET | `/health` | liveness for the settings popup; needs no database |
 
 ### Ranking
 
@@ -197,9 +200,13 @@ derived from user text).
 ## Layout
 
 ```
-schema.py / seed.py     setup scripts
-run.py                  Flask entry point
+schema.py / seed.py     setup scripts (Neo4j)
+seed_signals.py         synthetic answering history for the expertise filter (SQLite)
+run.py                  Flask entry point (127.0.0.1:5000; FLASK_DEBUG=1 for the debugger)
+expertise_filter.py     signal scoring + person store used by /analyze and /experts
+directory.json          synthetic profiles (name, job title, seniority) by emp_* id
 app/api.py              routes + error mapping
+app/signals.py          /analyze and /experts for the capture agent
 app/services.py        validation, hierarchy rules, embedding call, transactions
 app/repository.py      all Cypher
 app/hierarchy.py       node types + allowed parents + client-linkable types
@@ -212,18 +219,29 @@ app/extraction.py      stub for the LLM document reader (see Document ingestion)
 
 `POST /analyze` takes one capture-agent payload (counts, flags, ids, topic tokens; see the
 docstring at the top of `app/signals.py`), validates it with Pydantic and hands it to
-`ExpertiseFilter.process()`. `POST /experts` takes `{"topics": [...]}` and returns the people the
+`ExpertiseFilter.process()`. Its answer carries the filter's `doubt_alert` when the author is
+struggling with the draft; the agent then opens the people panel. `POST /experts` takes `{"topics": [...]}` and returns the people the
 filter rates as experts, best first. Free-text strings are rejected with 400. The filter's
 SQLite store is `whoknows.db` (git-ignored; `WHOKNOWS_FILTER_DB` overrides) and is only used from
 one dedicated thread, since SQLite connections can't be shared across Flask's request threads.
 
-Tests: `uv run --with pytest pytest tests`.
+The store starts empty, and live typing never counts as answering yet (the agent always sends
+`is_reply: false`), so `/experts` returns nobody until it is seeded. Before starting the API:
+
+```bash
+uv run seed_signals.py --reset    # Sarah, Emma and Lucas become experts; Tom (2024) stays hidden
+```
+
+The people and topics match the panel's fixtures in `../preview-api.mjs`. `--reset` needs the
+API stopped, because Windows can't delete a database another process has open.
+
+Tests: `uv run --with pytest pytest`.
 
 ## Expertise filter (`expertise_filter.py`)
 
 A standalone, stdlib-only module that consumes payloads from the capture agent
-(not in this repo) and decides when to route a tip to an expert. It is wired up
-separately from the Neo4j graph so it can run on its own for the demo.
+(`../capture-agent/`, via `app/signals.py`) and decides when to route a tip to an expert.
+It is separate from the Neo4j graph so it runs without a database server.
 
 ### Payload schema (summary)
 
@@ -232,7 +250,7 @@ Each payload is one trigger inside one focused text field. Every count is
 the latest payload's values — never sum across payloads.
 
 Fields: `user_id`, `context_id`, `ts` (Unix ms), `trigger`
-(`pause|deletion_burst|punctuation|hedge|idle_flush|manual`), timing/pause
+(`pause|deletion_burst|punctuation|hedge|placeholder|idle_flush|manual|submit`), timing/pause
 counts, deletions, fluency, hedge words and placeholders, question-mark counts,
 window switches and pastes, `surface` (enum with `"other"` fallback),
 `is_reply`, prior/current message char counts, baseline pause/deletion rate,
@@ -250,8 +268,7 @@ python -c "import expertise_filter as ef; \
 Tests:
 
 ```bash
-pip install pytest
-pytest test_expertise_filter.py -v
+uv run --with pytest pytest test_expertise_filter.py -v
 ```
 
 ### Scoring model
@@ -282,27 +299,44 @@ Three scores are computed per snapshot (always the latest payload for that
 - `is_expert(user_id, topic)` combines profile relevance (seniority + title
   hints), recency-decayed expertise evidence, and surface breadth. Two vetoes:
   more doubt than expertise, or more pasted than authored content.
-- `process(payload_dict)` returns `{"author", "recipient", "topic", "score",
-  "reasons"}` for the top qualifying topic, or `None`. Topics may be empty —
-  the payload is then buffered under `pending_contexts[context_id]` and
-  resolved on a later payload for the same context that carries topics.
+- `process(payload_dict, participants=None)` returns `None` when nothing is
+  routable, or `{"tip": tip_or_none, "interactions": [...], "doubt_alert":
+  alert_or_none}`.
+  - `tip` — the routing dict for the side panel
+    (`author`, `recipient`, `topic`, `score`, `reasons`).
+  - `interactions` — weighted people-network edges (`compose_answer` on
+    answering, `asked_about` on asking), one per counterpart. Empty when
+    `participants` is `None`, which is always the case today: `/analyze` has no
+    participant source yet, and nothing consumes these edges yet.
+  - `doubt_alert` — the upstream push signal: *"this person is having
+    doubts"*. Fires the moment doubt crosses `push_doubt_threshold`,
+    respects `push_cooldown_ms` per context (so one hesitant draft doesn't
+    spam the panel), and includes `user_id`, `context_id`, `surface`,
+    `ts`, `doubt`, `topics` (may be empty — the panel can open before the
+    topic extractor speaks), `direction`, and short human-readable
+    `reasons`. Pass `on_doubt_push=callback` to the constructor to also
+    receive the alert as a side-effect callback (true push semantics).
+- Topics may be empty — the payload is then buffered under
+  `pending_contexts[context_id]` and resolved on a later payload for the same
+  context that carries topics.
 
 All weights, thresholds, half-life, and veto ratios live in the top-level
 `CONFIG` dict at the top of the file.
 
 ### Assumptions
 
-- `recipient` is always `None`. The payload identifies only one `user_id`;
-  wiring the counterpart (thread participants / reply recipient) is left as a
-  `TODO` on the orchestrator and would come from a separate participant map.
+- `recipient` is `None` unless the caller passes a `participants` list to
+  `process()`. The payload itself identifies only one `user_id` (the author);
+  the thread adapter (Outlook `to:`, Teams reply parent, meeting diarisation)
+  is the one that resolves the counterparts and should pass them in.
 - `baseline_avg_pause_ms` and `baseline_avg_deletion_rate` are sent once per
   session; the aggregator caches whichever baseline it has most recently seen
   for each `user_id` and never clears it from a later empty payload.
 - Cumulative counts are reconciled with `max()` of the live snapshot and the
   stored total, so re-sending a payload (or a later payload for the same
   `context_id`) never double-counts pasted or authored characters.
-- Decay half-life defaults to **30 days**; it mirrors `app/network.py`'s
-  lazy-decay pattern but on millisecond timestamps.
+- Decay half-life defaults to **30 days**, applied lazily on read and write, on
+  millisecond timestamps.
 - Surface breadth is `len(surfaces_seen) / len(SURFACES)`; the enum covers
   outlook/teams/gmail/word plus `other`.
 - Payloads with unknown surfaces fall back to `other`; payloads with

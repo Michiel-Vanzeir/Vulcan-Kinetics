@@ -2,7 +2,8 @@
 
 Transport.send() converts a SignalPayload (topics already filled in) to the backend's wire
 format, checks it, and POSTs it to <backend>/analyze on a background thread: fire-and-forget,
-one retry, then drop. Transport.request_experts() POSTs topic tokens to <backend>/experts and
+one retry, then drop. When the backend answers with a doubt_alert (the user is struggling
+with this draft), its vocabulary topics go to the `on_doubt` callback. Transport.request_experts() POSTs topic tokens to <backend>/experts and
 waits for the answer.
 
 Before anything is sent, check() enforces the wire format: known keys only, numbers and flags
@@ -17,6 +18,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from typing import Any
 
 from agent.backend_payload import BackendPayloads
@@ -66,9 +68,15 @@ class Transport:
     is printed as the exact JSON that would be sent.
     """
 
-    def __init__(self, config: AgentConfig, echo: bool = False):
+    def __init__(
+        self,
+        config: AgentConfig,
+        echo: bool = False,
+        on_doubt: Callable[[list[str]], None] | None = None,
+    ):
         self._config = config
         self._echo = echo
+        self._on_doubt = on_doubt
         self._converter = BackendPayloads()
         self._queue: queue.Queue[dict[str, Any] | None] = queue.Queue()
         self._thread = threading.Thread(target=self._run, daemon=True, name="transport")
@@ -131,10 +139,21 @@ class Transport:
                     log.warning("dropped a payload after a retry (%d dropped so far)", self.dropped)
                 else:
                     self.sent += 1
-                    tip = response.get("tip")
-                    if self._echo and tip:
-                        print(f"<- tip: {tip.get('author')} knows {tip.get('topic')}", flush=True)
+                    self._handle_response(response)
                 break
+
+    def _handle_response(self, response: dict[str, Any]) -> None:
+        tip = response.get("tip")
+        if self._echo and tip:
+            print(f"<- tip: {tip.get('author')} knows {tip.get('topic')}", flush=True)
+        alert = response.get("doubt_alert")
+        if not isinstance(alert, dict):
+            return
+        topics = [t for t in alert.get("topics") or [] if isinstance(t, str) and is_vocab_token(t)]
+        if self._echo:
+            print(f"<- doubt: struggling with {topics or 'an unknown topic'}", flush=True)
+        if self._on_doubt is not None:
+            self._on_doubt(topics)
 
     # THE FUNCTION THAT CROSSES THE NETWORK BOUNDARY (agent side): every request goes through here.
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:

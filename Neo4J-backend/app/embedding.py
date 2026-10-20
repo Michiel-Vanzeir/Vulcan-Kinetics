@@ -1,3 +1,4 @@
+"""Text embeddings: real `sentence-transformers` model or a fake hashed fallback."""
 import hashlib
 import math
 from . import config

@@ -1,5 +1,5 @@
 /** Adapt the popup settings and health check for standalone browser testing. */
-const API_URL = 'http://127.0.0.1:8000';
+const API_URL = 'http://127.0.0.1:5000';
 const autoDetect = document.querySelector('#auto-detect');
 const storageError = document.querySelector('#storage-error');
 

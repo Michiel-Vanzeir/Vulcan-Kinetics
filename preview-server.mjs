@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { createPreviewStore, servePreviewApi } from './preview-api.mjs';
 
 const PORT = 4173;
+// Same variable as the capture agent; the Flask backend (Neo4J-backend/run.py) listens on 5000.
+const BACKEND_URL = (process.env.WHOKNOWS_BACKEND_URL || 'http://127.0.0.1:5000').replace(/\/$/, '');
 const previewStore = createPreviewStore();
 const ASSETS = new Map([
   ['/', ['index.html', 'text/html']],
@@ -31,7 +33,7 @@ async function servePreview(request, response) {
   }
   if (pathname === '/preview-health') {
     try {
-      const health = await fetch('http://127.0.0.1:8000/health', {
+      const health = await fetch(`${BACKEND_URL}/health`, {
         signal: AbortSignal.timeout(3000),
         redirect: 'error',
       });

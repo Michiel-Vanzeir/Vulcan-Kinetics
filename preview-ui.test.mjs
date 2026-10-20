@@ -51,7 +51,8 @@ async function setup() {
       return nodes.get(selector);
     },
   };
-  const context = vm.createContext({ document, AbortSignal, setTimeout, clearTimeout,
+  const context = vm.createContext({ document, AbortSignal, URLSearchParams, setTimeout,
+    clearTimeout, location: { search: '' },
     setInterval() {}, fetch: async (url, options) => {
       try {
         const path = url.replace('/ui-api', '');

@@ -1,3 +1,4 @@
+"""HTTP routes for the whoknows backend: thin shells over `services`."""
 import json
 from flask import Blueprint, jsonify, request
 from pydantic import ValidationError
@@ -10,6 +11,12 @@ bp = Blueprint("api", __name__)
 def _flag(name: str, default: bool) -> bool:
     val = request.args.get(name)
     return default if val is None else val.lower() in ("1", "true", "yes")
+
+
+@bp.get("/health")
+def health():
+    """Liveness check for the settings popup. Touches no database, so it works without Neo4j."""
+    return jsonify({"status": "ok"})
 
 
 @bp.post("/nodes")

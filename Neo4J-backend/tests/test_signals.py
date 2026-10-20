@@ -28,7 +28,15 @@ def client(monkeypatch):
 def test_valid_payload_is_accepted(client):
     response = client.post("/analyze", json=VALID)
     assert response.status_code == 200
-    assert response.get_json() == {"accepted": True, "tip": None}
+    assert response.get_json() == {"accepted": True, "tip": None, "doubt_alert": None}
+
+
+def test_doubt_alert_is_returned_to_the_agent(client):
+    doubting = {**VALID, "hedge_words": 4, "placeholders": 2, "deletion_bursts": 3,
+                "rewrite_loops": 2, "long_pauses": 3, "chars_deleted": 30}
+    alert = client.post("/analyze", json=doubting).get_json()["doubt_alert"]
+    assert alert["context_id"] == "c_9f2"
+    assert alert["topics"] == ["notice_period", "country_ES"]
 
 
 @pytest.mark.parametrize(
