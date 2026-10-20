@@ -30,9 +30,8 @@ All data here is synthetic. Never load real or confidential data (AGENTS.md).
    uv sync                                             # creates .venv from uv.lock
    cp env.example .env                                 # Windows: copy env.example .env
    ```
-   Without uv (verified on Python 3.14, Windows): `py -3 -m venv .venv`, then
-   `.venv/Scripts/python -m pip install flask neo4j pydantic python-dotenv pytest`, and use
-   `.venv/Scripts/python <script>` wherever this file says `uv run <script>`.
+   Don't install into this `.venv` with pip: uv and pip overwrite each other's packages
+   there (seen as `ImportError: cannot import name 'ArgsKwargs'` from pydantic_core).
    Then choose an embedding backend:
    - **Real embeddings:** `uv sync --extra ml` (large: installs torch; the first
      call also downloads `all-MiniLM-L6-v2`, ~90 MB).
@@ -269,8 +268,7 @@ python -c "import expertise_filter as ef; \
 Tests:
 
 ```bash
-pip install pytest
-pytest test_expertise_filter.py -v
+uv run --with pytest pytest test_expertise_filter.py -v
 ```
 
 ### Scoring model

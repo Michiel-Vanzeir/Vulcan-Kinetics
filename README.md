@@ -6,18 +6,20 @@ Typed text never leaves your machine: only counts and topic tokens do.
 
 ## Run the full demo (Windows)
 
-Needs Python 3.12 or newer (verified on 3.14), Node.js 22 or newer, and Edge or Chrome.
+Needs [uv](https://docs.astral.sh/uv/) for the backend (it installs the Python it needs),
+Python 3.12 or newer for the agent, Node.js 22 or newer, and Edge or Chrome.
 Neo4j and Docker are **not** needed for this flow. Use three terminals from the repo root.
 
 **1. Backend** (Flask on http://127.0.0.1:5000):
 
 ```sh
 cd Neo4J-backend
-py -3 -m venv .venv
-.venv/Scripts/python -m pip install flask neo4j pydantic python-dotenv pytest
-.venv/Scripts/python seed_signals.py --reset
-.venv/Scripts/python run.py
+uv sync
+uv run seed_signals.py --reset
+uv run run.py
 ```
+
+Use only uv in `Neo4J-backend/`: installing into its `.venv` with pip as well breaks packages.
 
 `seed_signals.py` gives the expertise filter a synthetic history (Sarah, Emma and Lucas as
 current experts, Tom as stale), so the agent's "who knows" answer matches the panel.
@@ -54,7 +56,8 @@ itself has no expert, which is the knowledge-gap case.
 **Check that everything is up:** http://127.0.0.1:4173/popup.html should say
 "Connected to backend".
 
-**Tests:** `.venv/Scripts/python -m pytest` in `Neo4J-backend/` and in `capture-agent/`, and
+**Tests:** `uv run --with pytest pytest` in `Neo4J-backend/`, `.venv/Scripts/python -m pytest`
+in `capture-agent/`, and
 `node --test preview-api.test.mjs preview-ui.test.mjs` in the repo root.
 
 ## Local popup preview
