@@ -90,4 +90,99 @@ app/repository.py      all Cypher
 app/hierarchy.py       allowed parent types
 app/embedding.py       embed() + build_knowledge_text()
 app/extraction.py      stub for the future LLM document reader
+expertise_filter.py    capture-agent signal consumer (SQLite, stdlib only)
+directory.json         sample profile data (user_id -> job_title/seniority/dep)
+test_expertise_filter.py pytest suite for the filter
 ```
+
+## Expertise filter (`expertise_filter.py`)
+
+A standalone, stdlib-only module that consumes payloads from the capture agent
+(not in this repo) and decides when to route a tip to an expert. It is wired up
+separately from the Neo4j graph so it can run on its own for the demo.
+
+### Payload schema (summary)
+
+Each payload is one trigger inside one focused text field. Every count is
+**cumulative since the context opened**, so for a given `context_id` you take
+the latest payload's values — never sum across payloads.
+
+Fields: `user_id`, `context_id`, `ts` (Unix ms), `trigger`
+(`pause|deletion_burst|punctuation|hedge|idle_flush|manual`), timing/pause
+counts, deletions, fluency, hedge words and placeholders, question-mark counts,
+window switches and pastes, `surface` (enum with `"other"` fallback),
+`is_reply`, prior/current message char counts, baseline pause/deletion rate,
+and `topics` (may be empty while the extractor is being built).
+
+### Run
+
+```bash
+# From Neo4J-backend/
+python -c "import expertise_filter as ef; \
+  f = ef.build_filter('whoknows.db', 'directory.json'); \
+  print(f.process({'user_id':'emp_014','context_id':'c1','ts':1,'trigger':'manual','topics':[]}))"
+```
+
+Tests:
+
+```bash
+pip install pytest
+pytest test_expertise_filter.py -v
+```
+
+### Scoring model
+
+Three scores are computed per snapshot (always the latest payload for that
+`context_id`):
+
+- **confidence_score**: `conf_base` plus fluency bonuses, minus penalties for
+  deletions (normalised against the user's own `baseline_avg_deletion_rate`),
+  deletion bursts, rewrite loops, hedges per 100 chars, placeholders, long
+  pauses, window switches, and pause behaviour (normalised against
+  `baseline_avg_pause_ms`). Multiplied by a paste discount
+  `max(0, 1 - paste_ratio / 2*paste_discount_at_ratio)`.
+- **doubt_score**: hedges, placeholders, question marks (heavier when not a
+  reply), long pauses, deletion bursts, rewrite loops, and window switches
+  relative to `context_age_ms`. Clipped to [0, 1].
+- **direction**: `answering` when a long reply follows a short prior message
+  with no question marks; `asking` for a short, non-reply, question-bearing
+  message; `neutral` otherwise.
+
+### Routing rules
+
+- Expertise evidence is credited only when `direction == "answering"`,
+  confidence is high, and paste ratio is low.
+- Doubt evidence is credited when doubt is high (asker or not).
+- Everyone is updated on every payload (asker and answerer alike) — the system
+  tracks everyone, not just experts.
+- `is_expert(user_id, topic)` combines profile relevance (seniority + title
+  hints), recency-decayed expertise evidence, and surface breadth. Two vetoes:
+  more doubt than expertise, or more pasted than authored content.
+- `process(payload_dict)` returns `{"author", "recipient", "topic", "score",
+  "reasons"}` for the top qualifying topic, or `None`. Topics may be empty —
+  the payload is then buffered under `pending_contexts[context_id]` and
+  resolved on a later payload for the same context that carries topics.
+
+All weights, thresholds, half-life, and veto ratios live in the top-level
+`CONFIG` dict at the top of the file.
+
+### Assumptions
+
+- `recipient` is always `None`. The payload identifies only one `user_id`;
+  wiring the counterpart (thread participants / reply recipient) is left as a
+  `TODO` on the orchestrator and would come from a separate participant map.
+- `baseline_avg_pause_ms` and `baseline_avg_deletion_rate` are sent once per
+  session; the aggregator caches whichever baseline it has most recently seen
+  for each `user_id` and never clears it from a later empty payload.
+- Cumulative counts are reconciled with `max()` of the live snapshot and the
+  stored total, so re-sending a payload (or a later payload for the same
+  `context_id`) never double-counts pasted or authored characters.
+- Decay half-life defaults to **30 days**; it mirrors `app/network.py`'s
+  lazy-decay pattern but on millisecond timestamps.
+- Surface breadth is `len(surfaces_seen) / len(SURFACES)`; the enum covers
+  outlook/teams/gmail/word plus `other`.
+- Payloads with unknown surfaces fall back to `other`; payloads with
+  unknown triggers raise `ValueError` (the capture agent is in-house, so a
+  bad trigger is a bug, not something to swallow silently).
+- The SQLite file (`*.db`) is git-ignored; use `":memory:"` in tests.
+- No capture / keylogging code: this module only consumes the payloads.

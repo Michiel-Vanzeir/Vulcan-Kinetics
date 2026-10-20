@@ -17,6 +17,12 @@ __pycache__/
 .venv/
 venv/
 
+# Local databases (expertise_filter stores person documents in SQLite)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
 # OS / editor
 .DS_Store
 Thumbs.db
