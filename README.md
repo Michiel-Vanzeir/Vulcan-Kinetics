@@ -31,6 +31,9 @@ Your account has a separate fictional headshot stored locally in `account-portra
 from each person's hardcoded `count` in `people-panel.js`; it is synthetic, not calculated
 from tickets, conversations or backend records.
 Open `/people-panel.html` for the panel alone, or use **Reload people panel** after editing.
+With `?popup=1` the panel fills its window and **Close**/Esc close the window: the capture agent
+opens it this way on **Ctrl+Alt+W** (see `capture-agent/README.md`). `?topics=notice_period,country_BE`
+pre-fills the search from the agent's topic tokens (mapping in `TOPIC_SEARCH` in `people-panel.js`).
 The smaller settings popup remains available below it.
 
 The profile icon opens a dedicated **Account** view for Sarah De Vos's synthetic demo profile.

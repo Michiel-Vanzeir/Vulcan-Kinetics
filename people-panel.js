@@ -30,6 +30,18 @@ let listScrollTop = 0;
 const results = document.querySelector('.body');
 const searchInput = document.querySelector('#people-search');
 
+// Popup mode: the capture agent opens this page as its own small window on Ctrl+Alt+W,
+// with ?popup=1&topics=notice_period,country_ES (topic tokens, never typed text).
+const pageParams = new URLSearchParams(location.search);
+const POPUP_MODE = pageParams.has('popup');
+// Topic tokens -> a search the synthetic fixtures understand, most specific topic first.
+const TOPIC_SEARCH = [
+  ['notice_period', 'notice'], ['year_end_bonus', 'bonus'], ['dismissal', 'termination'],
+  ['payslip', 'payroll'], ['PC_200', 'pc 200'], ['country_FR', 'france'],
+  ['country_BE', 'belgium'],
+];
+if (POPUP_MODE) document.documentElement.classList.add('popup');
+
 /** Load only valid local demo preferences, keeping storage failures visible. */
 function loadAccountPreferences() {
   try {
@@ -334,6 +346,10 @@ function showComposer(slot, person) {
 
 /** Close or reopen the preview while preserving search and conversation state. */
 function setPanelOpen(open) {
+  if (!open && POPUP_MODE) {
+    window.close();
+    return;
+  }
   document.querySelector('.panel').hidden = !open;
   document.querySelector('#reopen').hidden = open;
   if (open && accountOpen) document.querySelector('#account-back').focus();
@@ -407,4 +423,8 @@ setInterval(() => {
     ping.title = availability.allowed ? '' : availability.label;
   }
 }, 1000);
+const pageTopics = (pageParams.get('topics') || '').split(',');
+const topicSearch = TOPIC_SEARCH.find(([token]) => pageTopics.includes(token));
+if (topicSearch) searchInput.value = topicSearch[1];
 renderPeople();
+if (POPUP_MODE) searchInput.focus();
