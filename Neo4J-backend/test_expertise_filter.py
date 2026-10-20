@@ -338,6 +338,89 @@ def test_no_participants_means_no_interactions_but_tip_still_fires():
     assert out["tip"]["recipient"] is None
 
 
+# ---------------------------------------------------------------------------
+# Doubt push: upstream signal that "this person is having doubts"
+# ---------------------------------------------------------------------------
+def _hesitant_payload(**overrides):
+    base = dict(
+        user_id="emp_112",
+        context_id="ctx-doubt",
+        trigger="hedge",
+        is_reply=False,
+        current_message_char_count=120,
+        chars_typed=160, chars_deleted=40,
+        hedge_words=4, placeholders=2, question_marks_written=3,
+        long_pauses=5, window_switches_away=4,
+        deletion_bursts=3, rewrite_loops=2,
+    )
+    base.update(overrides)
+    return _payload(**base)
+
+
+def test_hesitant_payload_emits_doubt_alert():
+    f = build_filter()
+    out = f.process(_hesitant_payload(topics=["bonus_pc200"]))
+    assert out is not None
+    assert out["doubt_alert"] is not None
+    alert = out["doubt_alert"]
+    assert alert["user_id"] == "emp_112"
+    assert alert["context_id"] == "ctx-doubt"
+    assert alert["direction"] == "asking"
+    assert alert["doubt"] > 0.5
+    assert alert["topics"] == ["bonus_pc200"]
+    assert len(alert["reasons"]) > 0
+
+
+def test_confident_writer_does_not_trigger_doubt_alert():
+    f = _senior_filter()
+    out = f.process(_payload(
+        topics=["bonus_pc200"],
+        is_reply=True,
+        prior_message_char_count=120,
+        current_message_char_count=600,
+        chars_typed=600, chars_deleted=10,
+        fluency_run_seconds=25.0, longest_fluency_run_seconds=40.0,
+    ))
+    # No tip (one payload isn't enough on its own), no edges, no alert.
+    assert out is None
+
+
+def test_doubt_alert_fires_even_without_topics():
+    f = build_filter()
+    out = f.process(_hesitant_payload(topics=[]))
+    assert out is not None
+    assert out["tip"] is None
+    assert out["interactions"] == []
+    assert out["doubt_alert"] is not None
+    assert out["doubt_alert"]["topics"] == []
+
+
+def test_doubt_alert_respects_cooldown_per_context():
+    f = build_filter()
+    first = f.process(_hesitant_payload(ts=BASE_TS, topics=["bonus_pc200"]))
+    assert first and first["doubt_alert"] is not None
+
+    # Second payload for the same context, right after - cooldown blocks it.
+    second = f.process(_hesitant_payload(ts=BASE_TS + 1_000,
+                                         topics=["bonus_pc200"]))
+    assert second is None or second.get("doubt_alert") is None
+
+    # Well past the cooldown - alert fires again.
+    third = f.process(_hesitant_payload(ts=BASE_TS + 60_000,
+                                        topics=["bonus_pc200"]))
+    assert third and third["doubt_alert"] is not None
+
+
+def test_doubt_push_callback_is_invoked():
+    received = []
+    from expertise_filter import ExpertiseFilter, PersonStore
+    f = ExpertiseFilter(PersonStore(":memory:"),
+                        on_doubt_push=received.append)
+    f.process(_hesitant_payload(topics=["bonus_pc200"]))
+    assert len(received) == 1
+    assert received[0]["user_id"] == "emp_112"
+
+
 def test_pasted_answering_does_not_emit_compose_answer_edge():
     f = build_filter()
     out = f.process(_payload(
