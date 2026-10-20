@@ -30,10 +30,11 @@ Four teammates work in parallel, each with their own AI assistant, so the code h
 
 - Capture agent: local desktop agent, one OS for the demo (language/OS _TBD_, see "Open decisions" in `IDEA.md`)
 - Extension: optional companion, Chrome extension, Manifest v3, TypeScript (build tool _TBD_)
-- Backend: Python, FastAPI or Flask (_TBD_)
+- Backend: Python, Flask + Neo4j (the `Neo4J-backend/` code)
 - Data: synthetic JSON only, never real or confidential data
-- Package manager: _TBD_ (use only this one; never mix npm/yarn/pnpm, or pip/poetry/uv)
-- How to run locally: _TBD_ (keep `README.md` in sync)
+- Package manager: one per ecosystem, never mixed. Python backend uses **uv** (never pip/poetry);
+  JS/TS package manager _TBD_ (never mix npm/yarn/pnpm).
+- How to run locally: backend in `Neo4J-backend/README.md`; agent/extension _TBD_
 - How to run tests / lint / format: _TBD_
 
 Don't add a new dependency unless you have to. If you add one, say so explicitly in your summary so the team can approve it. Prefer what is already installed.
