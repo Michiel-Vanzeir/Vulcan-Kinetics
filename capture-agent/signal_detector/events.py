@@ -93,6 +93,7 @@ class SignalPayload:
     trigger: Trigger
     gap_before_trigger_ms: int | None
     pause_count: int
+    long_pause_count: int
     longest_pause_ms: int
     mean_interkey_ms: float | None
     active_typing_ms: int
@@ -101,6 +102,7 @@ class SignalPayload:
     deletes: int
     deletion_bursts: int
     longest_deletion_run: int
+    rewrite_loops: int
     deletion_rate: float
     # Fluency
     fluency_run_seconds: float

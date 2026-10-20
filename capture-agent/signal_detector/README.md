@@ -4,10 +4,11 @@ Turns a stream of `KeyEvent`s into counted `SignalPayload`s per compose context 
 text field in one app). It measures and doesn't interpret: the backend scoring module turns
 these counts into TYPING / HESITATING / STRUGGLING.
 
-- Input: `KeyEvent` streams produced by the capture agent (`../agent/`). Wiring the two is out
-  of scope here; the detector is tested with synthetic streams (`../tests/test_signal_detector.py`).
-- Output: `SignalPayload`, the payload sent to the backend. The field list and the "explicitly
-  NOT sent" list are the contract, in `IDEA.md` under "Signal detector output".
+- Input: `KeyEvent` streams produced by the capture agent (`../agent/pipeline.py`). The detector
+  itself is tested with synthetic streams (`../tests/test_signal_detector.py`).
+- Output: `SignalPayload`. The field list and the "explicitly NOT sent" list are in `IDEA.md`
+  under "Signal detector output"; `../agent/backend_payload.py` converts it to the backend's
+  wire format before `../agent/sender.py` sends it.
 - Privacy proof: `SignalDetector.build_payload()` in `detector.py` is the only function that
   produces a payload. It never reads the private text window, and `SignalPayload` has no field
   that can carry text (enforced by `test_payload_has_no_free_text_fields`).

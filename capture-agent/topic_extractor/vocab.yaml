@@ -1,0 +1,226 @@
+# whoknows topic vocabulary.
+#
+# This file IS the complete list of things the topic extractor can ever output:
+#   - every key under `topics` (e.g. notice_period)
+#   - country_<ISO2> for every country under `entities.country`
+#   - PC_<3 digits> for joint committees matched by `entities.joint_committee.pattern`
+#   - worker_<class> for every class under `entities.worker_class`
+# Typed text never leaves the extractor; only these tokens do.
+#
+# Patterns are matched case-insensitively, without accents, on whole words, after
+# stemming per language. Patterns of 1 to 3 letters (or, avg, uk, cdi, ...) only match
+# when written in capitals. Dutch patterns of 9+ letters also match inside compounds.
+#
+# Removed because they fire on everyday sentences: notice ("I noticed"), employee,
+# worker, manager, integration, depart/sortie/vertrek, index, termination, FR cadre
+# ("dans le cadre de"). Some were replaced by longer, unambiguous phrases.
+
+topics:
+  notice_period:
+    patterns:
+      en: [notice period, resignation notice, termination notice]
+      nl: [opzegtermijn, opzeg, opzegging, ontslagtermijn]
+      fr: [preavis, préavis, delai de preavis, délai de préavis]
+  year_end_bonus:
+    patterns:
+      en: [year-end bonus, year end bonus, 13th month, thirteenth month, end of year premium]
+      nl: [eindejaarspremie, dertiende maand, 13e maand, 13de maand]
+      fr: [prime de fin d'annee, prime de fin d'année, 13eme mois, 13ème mois, treizieme mois, treizième mois]
+  meal_vouchers:
+    patterns:
+      en: [meal voucher, meal vouchers, lunch voucher]
+      nl: [maaltijdcheque, maaltijdcheques, lunchcheque]
+      fr: [cheque repas, chèque-repas, cheque-repas, titres restaurant, ticket restaurant]
+  ecocheques:
+    patterns:
+      en: [eco voucher, eco cheque, eco vouchers]
+      nl: [ecocheque, ecocheques, eco-cheque]
+      fr: [eco cheque, éco-chèque, ecocheque]
+  sick_leave:
+    patterns:
+      en: [sick leave, sick note, medical leave, disability leave, incapacity for work]
+      nl: [ziekteverlof, arbeidsongeschikt, arbeidsongeschiktheid, ziektebriefje, ziek gemeld]
+      fr: [conge maladie, congé maladie, incapacite de travail, incapacité de travail, arret maladie, arrêt maladie]
+  parental_leave:
+    patterns:
+      en: [parental leave, maternity leave, paternity leave, birth leave]
+      nl: [ouderschapsverlof, moederschapsverlof, vaderschapsverlof, geboorteverlof]
+      fr: [conge parental, congé parental, conge de maternite, congé de maternité, conge de paternite, congé de paternité, conge de naissance, congé de naissance]
+  holiday_pay:
+    patterns:
+      en: [holiday pay, vacation pay, double holiday pay]
+      nl: [vakantiegeld, dubbel vakantiegeld, enkel vakantiegeld]
+      fr: [pecule de vacances, pécule de vacances, double pecule, double pécule]
+  company_car:
+    patterns:
+      en: [company car, salary car, car policy]
+      nl: [bedrijfswagen, firmawagen, salariswagen, autobeleid]
+      fr: [voiture de societe, voiture de société, voiture salaire, car policy]
+  bike_lease:
+    patterns:
+      en: [bike lease, leasing bike, cycle to work]
+      nl: [fietslease, leasefiets, fietsvergoeding]
+      fr: [leasing velo, leasing vélo, velo de societe, vélo de société, indemnite velo, indemnité vélo]
+  BIK:
+    patterns:
+      en: [benefit in kind, bik]
+      nl: [voordeel alle aard, voordeel van alle aard, vaa]
+      fr: [avantage de toute nature, avantage toute nature, atn]
+  payslip:
+    patterns:
+      en: [payslip, pay slip, salary slip, wage slip]
+      nl: [loonbrief, loonfiche, loonstrook, loonstaat]
+      fr: [fiche de paie, fiche de salaire, bulletin de paie, bulletin de salaire]
+  overtime:
+    patterns:
+      en: [overtime, overtime hours, extra hours, overtime pay]
+      nl: [overuren, overwerk, meeruren]
+      fr: [heures supplementaires, heures supplémentaires, heures sup, sursalaire]
+  trial_period:
+    patterns:
+      en: [trial period, probation period]
+      nl: [proefperiode, proeftijd]
+      fr: [periode d'essai, période d'essai]
+  severance:
+    patterns:
+      en: [severance, severance pay, dismissal indemnity, termination pay]
+      nl: [opzegvergoeding, verbrekingsvergoeding, ontslagvergoeding]
+      fr: [indemnite de rupture, indemnité de rupture, indemnite de licenciement, indemnité de licenciement, prime de depart, prime de départ]
+  onboarding:
+    patterns:
+      en: [onboarding, new hire setup, first day setup]
+      nl: [onboarding, indiensttreding, aanwerving]
+      fr: [onboarding, embauche]
+  offboarding:
+    patterns:
+      en: [offboarding, exit process, departure process]
+      nl: [offboarding, uitdiensttreding]
+      fr: [offboarding, depart de l'employe, départ de l'employé, sortie de personnel]
+  warrant:
+    patterns:
+      en: [warrant, warrants, stock warrant, cash warrant]
+      nl: [warrant, warrants]
+      fr: [warrant, warrants, bon de souscription]
+  group_insurance:
+    patterns:
+      en: [group insurance, pension plan, second pillar, occupational pension]
+      nl: [groepsverzekering, aanvullend pensioen, tweede pijler]
+      fr: [assurance groupe, pension complementaire, pension complémentaire, deuxieme pilier, deuxième pilier]
+  hospitalization_insurance:
+    patterns:
+      en: [hospitalization insurance, hospital insurance]
+      nl: [hospitalisatieverzekering, hospitalisatie]
+      fr: [assurance hospitalisation, hospitalisation]
+  tax_withholding:
+    patterns:
+      en: [withholding tax, payroll tax, professional withholding]
+      nl: [bedrijfsvoorheffing, voorheffing]
+      fr: [precompte professionnel, précompte professionnel, precompte, précompte]
+  social_security:
+    patterns:
+      en: [social security, social contributions, rsz, onss]
+      nl: [sociale zekerheid, sociale bijdragen, rsz]
+      fr: [securite sociale, sécurité sociale, cotisations sociales, onss]
+  dimona:
+    patterns:
+      en: [dimona, dimona declaration]
+      nl: [dimona, dimona-aangifte]
+      fr: [dimona, declaration dimona, déclaration dimona]
+  flex_reward:
+    patterns:
+      en: [flex reward, cafeteria plan, flexible benefits]
+      nl: [flex reward, cafetariaplan, flexibele verloning]
+      fr: [flex reward, plan cafeteria, plan cafétéria, remuneration flexible, rémunération flexible]
+  home_office:
+    patterns:
+      en: [home office, remote work, telework, teleworking, home working]
+      nl: [thuiswerk, telewerk, telewerken]
+      fr: [teletravail, télétravail, travail a domicile, travail à domicile]
+  home_office_allowance:
+    patterns:
+      en: [home office allowance, telework allowance, remote work allowance]
+      nl: [thuiswerkvergoeding, telewerkvergoeding]
+      fr: [indemnite teletravail, indemnité télétravail, forfait teletravail, forfait télétravail]
+  commute_allowance:
+    patterns:
+      en: [commute allowance, transport allowance, mobility budget]
+      nl: [woon-werkverkeer, vervoersvergoeding, mobiliteitsbudget]
+      fr: [indemnite de deplacement, indemnité de déplacement, budget mobilite, budget mobilité, frais de transport]
+  time_credit:
+    patterns:
+      en: [time credit, career break, thematic leave]
+      nl: [tijdskrediet, loopbaanonderbreking, thematisch verlof]
+      fr: [credit-temps, crédit-temps, interruption de carriere, interruption de carrière, conge thematique, congé thématique]
+  career_break:
+    patterns:
+      en: [career break, sabbatical]
+      nl: [loopbaanonderbreking, sabbatical, sabbatjaar]
+      fr: [interruption de carriere, interruption de carrière, sabbatique, annee sabbatique, année sabbatique]
+  dismissal:
+    patterns:
+      en: [dismissal, termination of employment, contract termination, firing, redundancy]
+      nl: [ontslag, afdanking, c4]
+      fr: [licenciement, renvoi, rupture de contrat]
+  contract_type:
+    patterns:
+      en: [permanent contract, fixed-term contract, cdi, cdd, temporary contract]
+      nl: [vast contract, bepaalde duur, onbepaalde duur, tijdelijk contract]
+      fr: [cdi, cdd, contrat a duree indeterminee, contrat à durée indéterminée, contrat a duree determinee, contrat à durée déterminée]
+  minimum_wage:
+    patterns:
+      en: [minimum wage, guaranteed minimum, gmmi, gmmmi]
+      nl: [minimumloon, gewaarborgd minimum]
+      fr: [salaire minimum, rmmg, revenu minimum garanti]
+  indexation:
+    patterns:
+      en: [indexation, wage indexation, salary indexation]
+      nl: [indexering, loonindexering]
+      fr: [indexation, indexation salariale]
+  works_council:
+    patterns:
+      en: [works council, cppt, committee for prevention]
+      nl: [ondernemingsraad, or, cpbw]
+      fr: [conseil d'entreprise, cppt, comite d'entreprise, comité d'entreprise]
+  union_delegation:
+    patterns:
+      en: [union delegation, trade union, shop steward]
+      nl: [vakbondsafvaardiging, vakbond, syndicale afvaardiging]
+      fr: [delegation syndicale, délégation syndicale, syndicat]
+  gdpr:
+    patterns:
+      en: [gdpr, data protection, dpa, data breach]
+      nl: [gdpr, avg, gegevensbescherming, datalek]
+      fr: [rgpd, protection des donnees, protection des données, fuite de donnees, fuite de données]
+
+entities:
+  country:
+    BE: [belgium, belgie, belgië, belgique]
+    NL: [netherlands, nederland, pays-bas, holland]
+    FR: [france, frankrijk]
+    DE: [germany, duitsland, allemagne, deutschland]
+    LU: [luxembourg, luxemburg]
+    ES: [spain, spanje, espagne, españa, espana]
+    IT: [italy, italie, italië, italia]
+    PT: [portugal]
+    PL: [poland, polen, pologne]
+    UK: [united kingdom, uk, royaume-uni, verenigd koninkrijk, england, angleterre]
+    IE: [ireland, ierland, irlande]
+    RO: [romania, roemenie, roemenië, roumanie]
+    AT: [austria, oostenrijk, autriche]
+    CH: [switzerland, zwitserland, suisse]
+    US: [united states, usa, verenigde staten, etats-unis, états-unis]
+  joint_committee:
+    pattern: "PC\\s?(\\d{3})"
+  worker_class:
+    en:
+      white_collar: [white collar, white-collar, salaried employee]
+      blue_collar: [blue collar, blue-collar, manual worker, labourer, laborer]
+      executive: [executive, c-level]
+    nl:
+      white_collar: [bediende]
+      blue_collar: [arbeider]
+      executive: [kaderlid, directie]
+    fr:
+      white_collar: [employe, employé]
+      blue_collar: [ouvrier]
+      executive: [cadre superieur, cadre supérieur, dirigeant]

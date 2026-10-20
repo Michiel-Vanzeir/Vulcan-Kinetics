@@ -97,8 +97,10 @@ def decayed(value: float, last_seen_ms: int, now_ms: int,
 # Payload
 # =============================================================================
 _REQUIRED_HOUSEKEEPING = ("user_id", "context_id", "ts", "trigger")
+# "placeholder" ([name], xxx, ???) and "submit" (field sent or cleared) are sent by the
+# capture agent's signal detector too.
 _VALID_TRIGGERS = {"pause", "deletion_burst", "punctuation", "hedge",
-                   "idle_flush", "manual"}
+                   "placeholder", "idle_flush", "manual", "submit"}
 
 
 @dataclass

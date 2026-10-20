@@ -10,27 +10,41 @@ as well as password inputs in web content.
 import ctypes
 import os
 from ctypes import wintypes
-from dataclasses import dataclass
 
 import uiautomation as auto
 
-from agent.surfaces import is_sensitive_field, surface_name
+from agent.surfaces import Surface, is_sensitive_field, surface_name
 
 # uiautomation writes its own log to @AutomationLog.txt by default; the agent writes nothing to disk.
 auto.Logger.SetLogFile("")
 
 _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+_CF_UNICODETEXT = 13
 _user32 = ctypes.windll.user32
 _kernel32 = ctypes.windll.kernel32
+_user32.GetClipboardData.restype = wintypes.HANDLE
+_kernel32.GlobalLock.argtypes = [wintypes.HGLOBAL]
+_kernel32.GlobalLock.restype = ctypes.c_void_p
+_kernel32.GlobalUnlock.argtypes = [wintypes.HGLOBAL]
 
 
-@dataclass(frozen=True, slots=True)
-class Surface:
-    """The focused text field: a stable id, the surface name and whether to skip it."""
-
-    id: str
-    name: str
-    is_sensitive: bool
+def clipboard_text_length() -> int:
+    """Length of the text on the clipboard, for paste counts. The text itself is never kept."""
+    if not _user32.OpenClipboard(None):
+        return 0
+    try:
+        handle = _user32.GetClipboardData(_CF_UNICODETEXT)
+        if not handle:
+            return 0
+        pointer = _kernel32.GlobalLock(handle)
+        if not pointer:
+            return 0
+        try:
+            return len(ctypes.wstring_at(pointer))
+        finally:
+            _kernel32.GlobalUnlock(handle)
+    finally:
+        _user32.CloseClipboard()
 
 
 def _process_name(hwnd: int) -> str | None:

@@ -15,7 +15,7 @@ NEWLINE = "\n"
 
 _EMAIL = re.compile(r"\S+@\S+")
 # Joint committee numbers ("PC 200") are a topic, not personal data, so they survive
-# scrubbing as a normalised token. Every other number is removed.
+# scrubbing (normalised to "PC 200"). Every other number is removed.
 _NUMBER_OR_COMMITTEE = re.compile(
     r"\b(PC|PSC|CP)\s?(\d{3}(?:\.\d{2})?)\b|\d+(?:[.,/-]\d+)*", re.IGNORECASE
 )
@@ -35,7 +35,7 @@ def scrub(text: str) -> str:
     """Remove email addresses and numbers so they never reach topic extraction."""
     text = _EMAIL.sub(" ", text)
     text = _NUMBER_OR_COMMITTEE.sub(
-        lambda m: f"{m.group(1).upper()}_{m.group(2)}" if m.group(1) else " ", text
+        lambda m: f"{m.group(1).upper()} {m.group(2)}" if m.group(1) else " ", text
     )
     return _SPACES.sub(" ", text)
 

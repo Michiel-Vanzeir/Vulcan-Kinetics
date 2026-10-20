@@ -106,14 +106,15 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | # | Feature | Status | Owner |
 |---|---|---|---|
 | 1 | Synthetic dataset: 15 to 20 employees with the demo patterns (fresh expert, stale expert, opted-out person, knowledge-gap topic) | planned | |
-| 2 | Capture agent: ring buffer + accessibility-API surface ids, password and sensitive fields skipped, numbers/emails stripped | in progress (Michiel) | Michiel |
-| 3 | Capture agent: signal detector (raw signal counts per trigger, per text field; see "Signal detector output") | in progress (Michiel) | Michiel |
-| 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | in progress (Michiel) | Michiel |
-| 5 | Capture agent: single, auditable send path emitting derived payloads | in progress (Michiel) | Michiel |
+| 2 | Capture agent: ring buffer + accessibility-API surface ids, password and sensitive fields skipped, numbers/emails stripped | done | Michiel |
+| 3 | Capture agent: signal detector (raw signal counts per trigger, per text field; see "Signal detector output") | done | Michiel |
+| 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | done | Michiel |
+| 5 | Capture agent: end-to-end pipeline (hook -> detector -> extractor -> backend format) and single, auditable send path (`agent/sender.py`) | done | Michiel |
 | 6 | Capture agent surfaces: desktop apps (Teams, Outlook, Word, PowerPoint, OneNote, Slack, Notion) and work web apps in any browser (Gmail, Outlook, Teams, Google Docs, Slack, Notion, Confluence, Jira, SharePoint, Zendesk, Salesforce, ServiceNow) | in progress (Michiel) | Michiel |
-| 7 | Manual hotkey trigger | in progress (Michiel) | Michiel |
-| 8 | Fixed vocabulary of 200 to 500 payroll-domain topic ids | planned | |
-| 9 | Backend `/analyze`: derived payload in, stored as event | planned | |
+| 7 | Manual hotkey trigger (Ctrl+Alt+W) | done | Michiel |
+| 8 | Fixed vocabulary of payroll topic ids (35 topics + countries, PC numbers, worker classes for the demo) | done | Michiel |
+| 9 | Backend `/analyze`: signal payload in, stored as event | planned | |
+| 9b | Backend scoring module: TYPING / HESITATING / STRUGGLING state per text field, from signal payloads | planned | _teammate TBD_ |
 | 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | in progress (Sven) | Sven |
 | 11 | Expertise scoring: fluency, artifact weight, peer vouches, recency decay, knowledge-gap threshold | planned | |
 | 12 | Side panel with expert cards, evidence line, trust signals, "Ask [name]" | planned | |
@@ -169,8 +170,11 @@ The capture agent is the data source for the expertise graph. It has two jobs:
   - hedge word appended to the buffer ("I think", "not sure", "probably", "denk ik", "volgens mij", ...)
   - manual hotkey
   - idle flush every 10 s if nothing else fired
-- Matches against a fixed vocabulary of 200 to 500 payroll-domain terms (e.g. `notice_period`, `PC_200`, `year_end_bonus`, `country_ES`, `meal_vouchers`) using substring and stem matching, plus a small named-entity pass for countries and PC numbers.
-- Output is a subset of the vocabulary, never free text. The sentence never leaves memory.
+- Lives in `capture-agent/topic_extractor/`: one pure function, `extract_topics(window, lang_hint=None)`, which the signal detector calls on each trigger to fill `topics`.
+- Fixed vocabulary in `vocab.yaml` (EN/NL/FR): 35 payroll topics (e.g. `notice_period`, `year_end_bonus`, `meal_vouchers`), 15 countries (`country_ES`), joint committees (`PC_200`) and worker classes (`worker_white_collar`). Common misspellings in `typos.yaml`.
+- Matching: Snowball stemming in the detected language (langdetect, trusted only for 60+ chars), exact matches in all languages for mixed-language text, long Dutch words inside compounds, and a named-entity pass for countries, PC numbers and worker classes. Patterns of 1 to 3 letters (`OR`, `RSZ`, `CDI`) only match in capitals. Numbers and emails are masked first.
+- About 4 ms per 2000-char window. No model, no network.
+- Output is a subset of the vocabulary, never free text, validated before returning. The sentence never leaves memory.
 
 **Signal detector** (agent, `capture-agent/signal_detector/`)
 
@@ -200,9 +204,9 @@ Consumes signal payloads and labels each compose context. Hesitation lasts longe
 
 ### Signal detector output
 
-> **Draft.** Written from the detector brief because the planning-doc list wasn't in the repo. Reconcile with the planning doc and then remove this note.
+This list is the detector's output (`SignalPayload`). Counters cover the period since the previous payload of the same context.
 
-This list is **the contract** between the detector and every downstream module (scoring, expertise graph). The signal payload is what crosses the network to the backend. Counters cover the period since the previous payload of the same context.
+**On the wire** the agent sends the backend's format instead: `agent/backend_payload.py` turns each `SignalPayload` into the schema of `Neo4J-backend/expertise_filter.py` (counts **cumulative** since the context opened, `hedge_word` renamed `hedge`, topics accumulated per context), and `agent/sender.py` checks it before sending. That schema is the contract with the backend; the fields map one-to-one onto the groups below.
 
 **Housekeeping**
 - `schema_version`: payload format version
@@ -218,6 +222,7 @@ This list is **the contract** between the detector and every downstream module (
 - `trigger`: `pause` | `deletion_burst` | `punctuation` | `hedge_word` | `placeholder` | `idle_flush` | `manual` | `submit`
 - `gap_before_trigger_ms`: time since the previous keystroke when the trigger fired
 - `pause_count`: pauses > 800 ms
+- `long_pause_count`: pauses > 2 s
 - `longest_pause_ms`
 - `mean_interkey_ms`: mean gap between keystrokes, gaps ≥ 10 s excluded (null if fewer than 2 keystrokes)
 - `active_typing_ms`: sum of gaps < 800 ms
@@ -226,6 +231,7 @@ This list is **the contract** between the detector and every downstream module (
 - `backspaces`, `deletes`
 - `deletion_bursts`
 - `longest_deletion_run`: most consecutive deletion keys
+- `rewrite_loops`: deleted 3+ chars, then typed again
 - `deletion_rate`: deletions per typed char
 
 **Fluency**
@@ -279,7 +285,7 @@ Example (about 600 bytes as JSON, nulls included):
 }
 ```
 
-The code path from keystrokes to network is **one function, auditable in a single file**: `build_payload()` in `capture-agent/signal_detector/detector.py` is the only producer of this payload. Local-first processing is an architectural guarantee, not a promise.
+The code path from keystrokes to network is **one function, auditable in a single file**: `build_payload()` in `capture-agent/signal_detector/detector.py` is the only producer of signal payloads, and `Sender.send()` in `capture-agent/agent/sender.py` is the only way out, after a wire-format check (known keys only, no free-text strings, topics only from the vocabulary). Local-first processing is an architectural guarantee, not a promise.
 
 ### Expertise graph (backend)
 
@@ -341,8 +347,9 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
 ## Open decisions
 
-- Agent OS: the spec prefers macOS, but at least one teammate is on Windows. Decide which machine runs the demo.
-- Agent language/runtime: _TBD_.
+- Agent OS: the spec prefers macOS; the agent is currently built for Windows (`capture-agent/surface_windows.py` is the only OS-specific file). Decide which machine runs the demo.
+- Backend endpoint: the agent POSTs to `--backend-url` / `WHOKNOWS_BACKEND_URL`, but the backend has no HTTP route for `expertise_filter.process()` yet. Without a URL the agent runs in demo mode and only prints payloads.
+- Reply detection: `is_reply`, `prior_message_char_count` and `question_marks_in_prior_message` are always false/0, because the agent doesn't read the message being replied to.
 - Scoring formula: the product zeroes a score when any factor is 0 (e.g. no vouches yet). Each factor likely needs a floor (e.g. `1 + vouches`). Also decide where "direction of the conversation" enters the formula; it's listed as a signal but isn't a factor yet.
 
 ---
@@ -412,3 +419,9 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 11:34 (Thoma): Added local demo ping preferences, timed Do Not Disturb and recipient availability so the preview can demonstrate contact boundaries without real notifications.
 - 2026-10-20 (Michiel): Pivot from browser-only extension to a local capture agent covering all apps, with the extension as optional companion. Raw text stays on the machine; only derived payloads go to the backend. Hesitation detection is now a per-field state machine. Expertise is now inferred from fluency, answer direction, artifacts and implicit vouches; explicit "vouch on helpful answer" replaced by implicit vouches. Dropped the boundary against inferring expertise from behaviour, since the new design does exactly that, with local-first processing and per-surface consent as the safeguards. Demo: macOS agent watching Teams desktop.
 - 2026-10-20 (Sven): Backend stack decided: Flask + Neo4j (the `Neo4J-backend/` code), dropped the FastAPI-or-Flask / Neo4j-or-JSON open decision. Package manager for the backend is uv. Added a Client node type (projects serve clients, knowledge can be about a client, clients hold nothing) and knowledge revisions (edits stored as a new version that supersedes the old one). Document-to-graph ingestion is still unbuilt; a local-Ollama plan is written up in `Neo4J-backend/README.md`.
+- 2026-10-20 (Michiel): Capture agent built in Python, Windows first (pynput + UI Automation), because that's the hardware we can test on. Joint committee numbers ("PC 200") are kept when numbers are scrubbed, since they are topics, not personal data.
+- 2026-10-20 (Michiel): Dropped the browser extension: the capture agent is the only client. Agent now also captures browsers, limited to known work web apps (Gmail, Outlook, Teams, ...) by window title, plus more desktop apps (Outlook, Word, PowerPoint, OneNote, Slack, Notion). Sensitive fields (PIN, card, IBAN, address bar, ...), private windows and personal profiles are skipped.
+- 2026-10-20 (Michiel): Split hesitation detection: the agent's signal detector now emits raw counts per trigger (no labels), and the TYPING/HESITATING/STRUGGLING state machine moved to a backend scoring module (teammate). The full signal payload is what crosses the network, so scoring can use signals across sessions and be retuned by replay. Added the "Signal detector output" contract (draft).
+- 2026-10-20 (Michiel): Hedge list grown from about 30 to about 300 phrases and German added (SD Worx operates in DE). Matching is now spelling-tolerant (accents, apostrophes) and checked against neutral business sentences for false hits. Sensitive-field and private-window detection extended to NL/FR/DE labels and browser UIs; more work web apps recognised.
+- 2026-10-20 (Michiel): Topic extractor built (`capture-agent/topic_extractor/`): keyword, stem and pattern matching against a fixed EN/NL/FR vocabulary of 35 payroll topics plus countries, PC numbers and worker classes. No ML model, so the output is provably a subset of the vocabulary. Not yet wired into the signal detector.
+- 2026-10-20 (Michiel): Capture agent wired end to end: keyboard hook -> signal detector -> topic extractor -> backend wire format -> single sender, runnable with `python -m agent`. Adopted the backend's payload schema (expertise_filter.py, cumulative counts) as the wire format; added `placeholder` and `submit` to its accepted triggers, and long pauses and rewrite loops to the detector. Removed vocabulary patterns that fired on everyday sentences (notice, employee, manager, worker, index, ...). Enter sends in chat apps, Ctrl+Enter anywhere, Ctrl+Alt+W asks now.
