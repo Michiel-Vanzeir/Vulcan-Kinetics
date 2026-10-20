@@ -415,6 +415,23 @@ def test_one_pause_or_one_hedge_alone_does_not_fire():
     assert out["doubt_alert"] is not None
 
 
+def test_pauses_and_deletions_alone_do_not_fire():
+    out = build_filter().process(_payload(
+        topics=["notice_period"], pauses=3, long_pauses=2, deletion_bursts=1, rewrite_loops=1))
+    assert out is None or out["doubt_alert"] is None
+
+
+def test_demo_script_fires_only_on_the_hedge():
+    """Pause, type "24 week", delete it, pause, then "I think around"."""
+    f = build_filter()
+    hesitation = {"pauses": 2, "long_pauses": 1, "deletion_bursts": 1, "rewrite_loops": 1,
+                  "topics": ["PC_200", "notice_period"]}
+    before = f.process(_payload(ts=BASE_TS, **hesitation))
+    assert before is None or before["doubt_alert"] is None
+    after = f.process(_payload(ts=BASE_TS + 1_000, hedge_words=1, **hesitation))
+    assert after["doubt_alert"] is not None
+
+
 def test_doubt_push_callback_is_invoked():
     received = []
     f = ExpertiseFilter(PersonStore(":memory:"), on_doubt_push=received.append)

@@ -316,6 +316,11 @@ def _doubt_reasons(p: SignalPayload) -> list[str]:
     return reasons[:3]  # one or two lands in the UI, three is the hard cap
 
 
+def _writes_doubt(p: SignalPayload) -> bool:
+    """True once the draft itself shows doubt: a hedge, a placeholder or "??"."""
+    return p.hedge_words > 0 or p.placeholders > 0 or p.question_marks_written >= 2
+
+
 def direction(p: SignalPayload) -> str:
     """Classify this context as 'answering', 'asking', or 'neutral'."""
     cfg = CONFIG
@@ -514,6 +519,10 @@ class ExpertiseFilter:
                      scores: dict[str, Any]) -> dict[str, Any] | None:
         """Upstream push: 'this person is having doubts'. Cooldown per context."""
         cfg = CONFIG
+        # Pauses and deletions alone are also how people think while writing fluently, so the
+        # panel waits until the text itself shows doubt; until then they only add to the score.
+        if not _writes_doubt(snap):
+            return None
         # Rounded so sums that land exactly on the threshold (0.15 + 0.15) aren't lost to float error.
         if round(scores["doubt"], 6) < cfg["push_doubt_threshold"]:
             return None

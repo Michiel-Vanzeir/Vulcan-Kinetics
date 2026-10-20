@@ -45,9 +45,9 @@ The agent prints every payload it sends (`-> {...}`), which is the privacy proof
 
 > Hi Tom, the year-end bonus for a part-time employee in PC 200 is pro rata??
 
-The second `?` opens the panel. So does a pause followed by "I think" or "not sure", a
-deletion burst after a pause, or a placeholder like `[check]`. A single `?`, pause or hedge
-does not. The agent prints
+The second `?` opens the panel. So does a pause followed by "I think" or "not sure", or a
+placeholder like `[check]`. Pauses and deletions add to the doubt but never open the panel on
+their own: the text has to show doubt too. A single `?`, pause or hedge does not. The agent prints
 `<- doubt: struggling with ['PC_200', 'year_end_bonus']` and the panel opens top right with
 Sarah De Vos (current) above Tom Janssens (last active 2024). Ctrl+Alt+W opens it on demand
 and prints `<- who knows ...`. "Notice period in Spain" shows Emma for notice periods; Spain
