@@ -44,7 +44,7 @@ Don't add a new dependency unless you have to. If you add one, say so explicitly
 The full spec is under "Capture agent spec" in `IDEA.md`; read it before touching agent, hesitation or topic-extraction code. Never break these:
 - **Raw typed text never leaves the machine.** Don't log it, print it, write it to disk, or put it in any payload, not even for debugging.
 - **All network calls from the agent go through one send function in one file**, so the privacy guarantee is auditable. Don't add a second path.
-- Skip password fields entirely. Strip numbers and email addresses before topic extraction.
+- Skip password fields, other sensitive fields, private windows and non-work browser pages entirely. Strip numbers and email addresses before topic extraction. When in doubt, drop the keystroke.
 - Topic output is always a subset of the fixed vocabulary, never free text.
 
 ## 2. Language

@@ -17,7 +17,7 @@ Maintenance rules are in `AGENTS.md`, section 7. In short:
 
 | | |
 |---|---|
-| **What** | A local capture agent (plus an optional browser extension) that notices when you hesitate while writing, or opens on a shortcut, and shows which colleagues know the topic, with trust signals. Raw text never leaves your machine. |
+| **What** | A local capture agent that notices when you hesitate while writing, or opens on a shortcut, and shows which colleagues know the topic, with trust signals. Raw text never leaves your machine. |
 | **Challenge** | SD Worx, Tectonic Hackathon finals: *"Can your solution stay trusted without becoming another task?"* |
 | **Deadline** | **16:00 sharp** on 2026-10-20 (hacking 09:00 to 16:00). |
 | **Deliverables** | Builderbase: short description, pitch deck (ppt/pdf), public GitHub repo link, screenshots of final Aikido scan. |
@@ -64,11 +64,11 @@ We are one of 32 finalist teams (out of 800+ participants).
 
 ## The core idea
 
-1. **Push, not pull.** The user never goes to a search page. Expertise comes to them in whatever app they're already writing in: mail, Teams, Slack, Word, a ticket.
+1. **Push, not pull.** The user never goes to a search page. Expertise comes to them in whatever app they're already writing in, desktop or browser: Gmail, Outlook, Teams, Slack, Word, a ticket.
 2. **Trust signals, not just names.** Every suggested expert shows how recently and how fluently they worked on the topic, what they authored, and who implicitly vouches for them. Old expertise is labelled as old.
 3. **Expertise learned from how people write, not from profiles.** The same typing signal that detects doubt also detects confidence: someone who writes fluently about a topic, answers questions on it, and authors documents about it knows it.
 4. **Local-first privacy.** Keystrokes are processed on the employee's machine. Only small derived events (topic ids, signal, fluency) cross the network. No sentences, no names, no content.
-5. **Consent built in.** Opt-in per app (surface), opt-out per topic. The topic opt-out is enforced in the backend, not just hidden in the UI.
+5. **Consent built in.** Opt-in per app (surface), opt-out per topic. Personal pages, private windows, passwords and other sensitive fields are never captured. The topic opt-out is enforced in the backend, not just hidden in the UI.
 6. **Knowledge gap.** When nobody has recent expertise on a topic, whoknows shows a gap instead of a weak name.
 
 ### How whoknows answers the extra challenge
@@ -89,7 +89,7 @@ We are one of 32 finalist teams (out of 800+ participants).
 ## User flow
 
 1. The user is writing in any app: a Teams reply, an email, a section of a document.
-2. They start struggling (see **Signal detector**), or press the shortcut.
+2. They start struggling (the backend's **Scoring module** decides this from the detector's signals), or press the shortcut.
 3. A side panel slides in with one card per detected topic.
 4. Each card shows the top expert, one line of evidence ("answered this 12 times, last 2 weeks ago"), trust signals, and an "Ask [name]" action.
 
@@ -106,19 +106,18 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | # | Feature | Status | Owner |
 |---|---|---|---|
 | 1 | Synthetic dataset: 15 to 20 employees with the demo patterns (fresh expert, stale expert, opted-out person, knowledge-gap topic) | planned | |
-| 2 | Capture agent: ring buffer + accessibility-API surface ids, password fields skipped, numbers/emails stripped | in progress (Michiel) | Michiel |
-| 3 | Capture agent: signal detector (TYPING / HESITATING / STRUGGLING state machine per text field) | in progress (Michiel) | Michiel |
+| 2 | Capture agent: ring buffer + accessibility-API surface ids, password and sensitive fields skipped, numbers/emails stripped | in progress (Michiel) | Michiel |
+| 3 | Capture agent: signal detector (raw signal counts per trigger, per text field; see "Signal detector output") | in progress (Michiel) | Michiel |
 | 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | in progress (Michiel) | Michiel |
 | 5 | Capture agent: single, auditable send path emitting derived payloads | in progress (Michiel) | Michiel |
-| 6 | Capture agent: Teams desktop watched end-to-end on one OS | in progress (Michiel) | Michiel |
+| 6 | Capture agent surfaces: desktop apps (Teams, Outlook, Word, PowerPoint, OneNote, Slack, Notion) and work web apps in any browser (Gmail, Outlook, Teams, Google Docs, Slack, Notion, Confluence, Jira, SharePoint, Zendesk, Salesforce, ServiceNow) | in progress (Michiel) | Michiel |
 | 7 | Manual hotkey trigger | in progress (Michiel) | Michiel |
 | 8 | Fixed vocabulary of 200 to 500 payroll-domain topic ids | planned | |
 | 9 | Backend `/analyze`: derived payload in, stored as event | planned | |
 | 10 | Backend `/experts`: topic in, ranked experts + trust signals out, opt-out filtered | in progress (Sven) | Sven |
 | 11 | Expertise scoring: fluency, artifact weight, peer vouches, recency decay, knowledge-gap threshold | planned | |
 | 12 | Side panel with expert cards, evidence line, trust signals, "Ask [name]" | planned | |
-| 13 | Browser extension as optional companion (richer in-browser context) | planned | |
-| 14 | Consent UI: opt-in per surface, opt-out per topic | planned | |
+| 13 | Consent UI: opt-in per surface, opt-out per topic | planned | |
 
 ---
 
@@ -129,15 +128,20 @@ System diagram: [`docs/Structure.png`](docs/Structure.png). More team reference 
 ```
 USER'S MACHINE                  LOCAL CAPTURE AGENT                       whoknows BACKEND
 Gmail, Teams, Outlook,  keys    1. Ring buffer (~4 KB, in memory)
-Word, Slack, Notion,   ------>  2. Signal detector (state per text field)
-native apps                     3. Topic extractor (on triggers only)
+Word, Slack, Notion,   ------>  2. Signal detector (raw counts per trigger,
+native apps                        per text field)
+                                3. Topic extractor (on triggers only)
                                 4. Discard raw text
-                                   { user_id, topics, signal,      --->   /analyze  (store event)
-                                     surface, fluency, ts }               /experts  (rank people)
+                                   signal payload (counts,          --->  /analyze: scoring module
+                                   categories, topic ids)                   (TYPING / HESITATING /
+                                                                            STRUGGLING) + expertise graph
+                                                                          /experts  (rank people)
                                 Side panel  <------------- ranked experts -------'
 ```
 
-**Why a local agent and not add-ins per app:** one installer covers every writing surface. No separate Chrome extension, Office Add-in, Teams app or Slack app to deploy. IT ships one signed MSI or PKG through its existing MDM. The browser extension stays as an optional companion for richer in-browser context, but the agent works without it.
+The agent measures; the backend interprets. The detector only counts things (pauses, deletions, hedge words, ...). The backend's scoring module turns those counts into a hesitation state and expertise scores. Doing it this way means expertise scoring can use raw signals across sessions, and the state machine can be retuned by replaying stored payloads. Privacy is the same either way, because the payload holds only counts and categories.
+
+**Why a local agent and not add-ins per app:** one installer covers every writing surface, desktop apps and browsers alike. No Chrome extension, Office Add-in, Teams app or Slack app to deploy. IT ships one signed MSI or PKG through its existing MDM.
 
 The capture agent is the data source for the expertise graph. It has two jobs:
 
@@ -149,7 +153,9 @@ The capture agent is the data source for the expertise graph. It has two jobs:
 **Capture buffer**
 - Fixed-size ring buffer (about 4 KB), overwritten in place when full, so memory use stays constant.
 - Each entry holds a character, a timestamp and a surface id. The surface id ties keystrokes to the focused app and text field via the OS accessibility API.
-- Password fields detected via the accessibility API (`kSecureTextField` on macOS, `ES_PASSWORD` on Windows) are skipped entirely.
+- **What gets captured:** opted-in desktop work apps, and browser tabs only when the window title shows a known work web app (Gmail, Outlook, Teams, ...). Any other page (banking, shopping, personal sites), private/incognito windows and personal browser profiles are never captured. When the focused field can't be identified, the keystroke is dropped (fail closed).
+- Password fields detected via the accessibility API (`kSecureTextField` on macOS, `ES_PASSWORD` / UIA `IsPassword` on Windows) are skipped entirely.
+- Other sensitive fields are skipped too: fields whose label or id mentions credentials (PIN, verification code, ...), payment cards, bank accounts or national ids (in EN/NL/FR/DE), plus the browser address bar.
 - Numbers and email addresses are stripped from the window before extraction runs.
 
 **Topic extractor**
@@ -164,36 +170,114 @@ The capture agent is the data source for the expertise graph. It has two jobs:
 - Matches against a fixed vocabulary of 200 to 500 payroll-domain terms (e.g. `notice_period`, `PC_200`, `year_end_bonus`, `country_ES`, `meal_vouchers`) using substring and stem matching, plus a small named-entity pass for countries and PC numbers.
 - Output is a subset of the vocabulary, never free text. The sentence never leaves memory.
 
-**Signal detector**
+**Signal detector** (agent, `capture-agent/signal_detector/`)
 
-Hesitation lasts longer than one window, so detection is stateful per focused text field.
+- Turns a stream of keystroke events into **counted signals per compose context** (one focused text field in one app). It doesn't interpret them: no hesitation labels.
+- Emits a signal payload when a trigger fires: pause > 800 ms, deletion burst (> 3 backspaces in < 500 ms), punctuation (`.` `?` `!` newline), a completed hedge word, a completed placeholder, idle flush every 10 s, manual hotkey, or the field being sent/cleared.
+- Hedge words: about 300 phrases in EN/NL/FR/DE in `hedges.yaml`, matched on whole words when the word is completed. Matching ignores case, accents and apostrophes, and costs about 4 µs per check regardless of list size.
+- Placeholders: `[...]`, `<...>`, `xxx` and longer, `???` and longer, and a trailing `...` followed by a pause > 2 s.
+- Numbers and emails are masked before any lexical detection. They count toward total `chars_typed`, but never toward hedge words, placeholders or punctuation triggers.
+- Pastes count only as `paste_events` and `pasted_char_count`, never as typing, fluency or lexical content.
+- Password fields are hard-skipped from `focus_in` to `focus_out`: no state is created and nothing is emitted.
+- State is kept per context. Switching focus pauses the context's state and returning resumes it. Sending or clearing the field resets it.
+- Keeps a rolling per-user baseline (average pause, deletion rate), included once per session and whenever it shifts by more than 20%.
+
+**Scoring module** (backend, teammate)
+
+Consumes signal payloads and labels each compose context. Hesitation lasts longer than one payload, so the state is kept per context.
 
 | State | Meaning | Entered when |
 |---|---|---|
 | `TYPING` | Baseline, no signal | Start; or resolution (below) |
 | `HESITATING` | Soft signal, nothing surfaced | Pause > 800 ms while TYPING |
-| `STRUGGLING` | Payload emitted, side panel opens | HESITATING escalates (below) |
+| `STRUGGLING` | Side panel opens with experts | HESITATING escalates (below) |
 
 - **Escalation** (HESITATING to STRUGGLING) on any of: another pause within 10 s, a deletion burst, a hedge word, or still on the same sentence after 15 s.
 - **Resolution** (back to TYPING) when the sentence is completed and sent, or after > 20 s of fluent typing.
-- Each focused text field has its own state. Switching apps pauses that state; returning resumes it. Clearing or sending the field resets it.
+- A `submit` payload resets the context.
 
-**What crosses the network**
+### Signal detector output
 
-Only derived payloads, about 200 bytes per event. No sentences, no names, no content.
+> **Draft.** Written from the detector brief because the planning-doc list wasn't in the repo. Reconcile with the planning doc and then remove this note.
+
+This list is **the contract** between the detector and every downstream module (scoring, expertise graph). The signal payload is what crosses the network to the backend. Counters cover the period since the previous payload of the same context.
+
+**Housekeeping**
+- `schema_version`: payload format version
+- `payload_seq`: increasing sequence number per agent run
+- `ts`: unix ms when the payload was built
+- `user_id`, `device_id`, `agent_version`, `os`: from agent config, constant per run
+
+**Surface**
+- `surface`: surface category, e.g. `outlook_desktop`, `gmail_web`
+- `context_id`: opaque id of the compose context (focus session of one field)
+
+**Timing**
+- `trigger`: `pause` | `deletion_burst` | `punctuation` | `hedge_word` | `placeholder` | `idle_flush` | `manual` | `submit`
+- `gap_before_trigger_ms`: time since the previous keystroke when the trigger fired
+- `pause_count`: pauses > 800 ms
+- `longest_pause_ms`
+- `mean_interkey_ms`: mean gap between keystrokes, gaps ≥ 10 s excluded (null if fewer than 2 keystrokes)
+- `active_typing_ms`: sum of gaps < 800 ms
+
+**Deletions**
+- `backspaces`, `deletes`
+- `deletion_bursts`
+- `longest_deletion_run`: most consecutive deletion keys
+- `deletion_rate`: deletions per typed char
+
+**Fluency**
+- `fluency_run_seconds`: length of the current uninterrupted typing run (no pause > 800 ms, deletion, hedge word or paste)
+- `longest_fluency_run_seconds`
+
+**Lexical**
+- `chars_typed`: all typed chars, including masked numbers and emails
+- `content_chars`: typed chars excluding masked tokens
+- `masked_tokens`: number of number/email tokens masked
+- `sentence_ends`: `.` `!` `?` or newline outside masked tokens
+- `question_marks`
+- `hedge_words`, plus `hedge_words_by_language`: counts per language code (`en`, `nl`, `fr`)
+- `placeholders`, plus `placeholders_by_kind`: counts per `bracket`, `angle`, `x_run`, `question_run`, `trailing_ellipsis`
+- `topics`: topic ids from the fixed vocabulary (empty until the topic extractor is wired in)
+
+**Context**
+- `is_reply`, `prior_message_char_count`: from the capture agent, when known
+- `paste_events`, `pasted_char_count`
+- `focus_switches`: times this context was left and resumed
+- `focus_session_ms`: focused time in this context so far
+
+**Baseline** (null unless included in this payload)
+- `baseline_avg_pause_ms`, `baseline_avg_deletion_rate`
+
+**Signals explicitly NOT sent**
+- Typed characters, words or sentences, in any form (including hashes or fragments)
+- Which hedge word or placeholder matched (only counts per language/kind)
+- Pasted content, numbers, email addresses
+- Window titles, URLs, field labels or names
+- Per-keystroke timings (only aggregates)
+- Clipboard or screen content
+
+Example (about 600 bytes as JSON, nulls included):
 
 ```json
 {
-  "user_id": "u_1234",
-  "topics": ["notice_period", "country_ES"],
-  "signal": "struggling",
-  "surface": "outlook_desktop",
-  "fluency": 0.3,
-  "ts": 1729512345
+  "schema_version": 1, "payload_seq": 42, "ts": 1729512345000,
+  "user_id": "u_1234", "device_id": "d_77", "agent_version": "0.1.0", "os": "windows",
+  "surface": "outlook_desktop", "context_id": "c_9f2",
+  "trigger": "hedge_word", "gap_before_trigger_ms": 140, "pause_count": 2,
+  "longest_pause_ms": 1900, "mean_interkey_ms": 185.0, "active_typing_ms": 5200,
+  "backspaces": 6, "deletes": 0, "deletion_bursts": 1, "longest_deletion_run": 4, "deletion_rate": 0.15,
+  "fluency_run_seconds": 1.2, "longest_fluency_run_seconds": 4.8,
+  "chars_typed": 44, "content_chars": 40, "masked_tokens": 1, "sentence_ends": 0, "question_marks": 0,
+  "hedge_words": 1, "hedge_words_by_language": {"nl": 1}, "placeholders": 0, "placeholders_by_kind": {},
+  "topics": [],
+  "is_reply": true, "prior_message_char_count": 320, "paste_events": 0, "pasted_char_count": 0,
+  "focus_switches": 1, "focus_session_ms": 31000,
+  "baseline_avg_pause_ms": null, "baseline_avg_deletion_rate": null
 }
 ```
 
-The code path from keystrokes to network is **one function, auditable in a single file**. Local-first processing is an architectural guarantee, not a promise.
+The code path from keystrokes to network is **one function, auditable in a single file**: `build_payload()` in `capture-agent/signal_detector/detector.py` is the only producer of this payload. Local-first processing is an architectural guarantee, not a promise.
 
 ### Expertise graph (backend)
 
@@ -231,16 +315,16 @@ A fictional payroll company of 15 to 20 employees with deliberate expertise patt
 
 ## Hackathon demo scope
 
-- Browser extension plus a thin desktop agent on **one OS** (macOS preferred: the on-screen permission prompts reinforce the consent story).
-- Watch **one native app end-to-end: Teams desktop** (highest symbolic value for SD Worx).
-- Everything else (Outlook, Word, Slack, Notion, Windows support, MDM installer, artifact ingestion from Confluence/Jira) lives as architecture on the slide.
+- The capture agent alone (no extension) on **one OS**.
+- Captures desktop work apps and work web apps in the browser. Lead the demo with **Teams** (highest symbolic value for SD Worx) and Gmail or Outlook.
+- The rest (second OS, MDM installer, artifact ingestion from Confluence/Jira) lives as architecture on the slide.
 
 ## Non-negotiables
 
-- **Raw text never leaves the machine.** Only derived payloads cross the network. Password fields are never captured. Numbers and email addresses are stripped before extraction.
+- **Raw text never leaves the machine.** Only derived payloads cross the network. Password and sensitive fields, personal pages and private windows are never captured. Numbers and email addresses are stripped before extraction.
 - **One auditable send path:** all network calls from the agent go through a single function in a single file.
 - **Security (10%):** check authorisation server-side on every ID (IDOR is the obvious risk in a tool that exposes data about colleagues). Keep API keys in environment variables, never in the repo. Keep the endpoint surface small. Run Aikido early.
-- **Consent:** opt-in per surface, default off for personal browser profiles, banking and anything outside work. Opt-out per topic is filtered in the backend.
+- **Consent:** opt-in per surface; anything not on the work-surface list (personal browser profiles, banking, anything outside work) is never captured. Opt-out per topic is filtered in the backend.
 - **Honesty in the UI:** show stale or weak expertise as stale or weak. Never present a guess as certainty.
 - **Show only what works:** the pitch, deck and description must not claim features that aren't `done`.
 - **Demo without our own device:** every key moment must be capturable as a screenshot or short recording.
@@ -249,8 +333,7 @@ A fictional payroll company of 15 to 20 employees with deliberate expertise patt
 
 Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
-- Per-app add-ins (Office Add-in, Teams app, Slack app). The local agent replaces them.
-- Native capture for apps other than Teams desktop during the hackathon (slide only).
+- A browser extension or per-app add-ins (Office Add-in, Teams app, Slack app). The local agent covers browsers and desktop apps.
 - Sending, storing or logging raw typed text anywhere, including debug logs.
 - Routing incoming info@ emails to the right person (same engine, different input; mention it as a future extension in the pitch only).
 

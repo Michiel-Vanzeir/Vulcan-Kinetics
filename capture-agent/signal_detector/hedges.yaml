@@ -1,0 +1,357 @@
+# Hedge words and phrases per language. Keys must be two-letter language codes,
+# because the key (never the phrase) is what ends up in the payload.
+#
+# Matching: whole words, when the last word is completed, case-insensitive, and
+# insensitive to accents and apostrophes ("peut etre", "Im not sure" also match).
+# Leave out words that are mostly used neutrally; every false hit makes someone look
+# less sure than they are. Deliberately excluded: "about", "should", "double check",
+# NL "mogelijk" ("zo snel mogelijk"), DE "noch offen" ("offen für"), FR "pas sûr"
+# (matches "pas sur" once accents are ignored), "ca." (matches FR "ça").
+#
+# Unresolved markers (TBD, "nog te bepalen", "à confirmer", ...) are listed here too:
+# the writer is flagging something they don't know yet.
+
+en:
+  # Spec list
+  - I think
+  - I guess
+  - I'm not sure
+  - I believe
+  - maybe
+  - perhaps
+  - possibly
+  - around
+  - approximately
+  - roughly
+  - kind of
+  - sort of
+  - TBD
+  - TODO
+  # Opinion and assumption
+  - I think so
+  - I'd think
+  - I would think
+  - I'm guessing
+  - my guess is
+  - I suppose
+  - I assume
+  - I presume
+  - I reckon
+  - I imagine
+  - I'd say
+  - I would say
+  - I feel like
+  - it seems
+  - it seems like
+  - seems like
+  - it looks like
+  - apparently
+  - supposedly
+  - presumably
+  - in theory
+  - theoretically
+  # Probability
+  - probably
+  - likely
+  - most likely
+  - might be
+  - may be
+  - could be
+  - conceivably
+  - potentially
+  - hopefully
+  # Not knowing
+  - not sure
+  - not sure if
+  - not sure whether
+  - not entirely sure
+  - not quite sure
+  - not completely sure
+  - not certain
+  - I'm not certain
+  - uncertain
+  - unsure
+  - unclear
+  - I don't know
+  - dunno
+  - no idea
+  - I have no idea
+  - not a clue
+  - I wonder
+  - I'm wondering
+  - wondering if
+  # Memory and knowledge limits
+  - if I'm not mistaken
+  - if I remember correctly
+  - if I recall correctly
+  - IIRC
+  - AFAIK
+  - as far as I know
+  - to my knowledge
+  - to the best of my knowledge
+  - last time I checked
+  - off the top of my head
+  - if memory serves
+  - I could be wrong
+  - I might be wrong
+  - correct me if I'm wrong
+  - don't quote me
+  - don't quote me on this
+  # Approximation
+  - approx
+  - more or less
+  - give or take
+  - or so
+  - ballpark
+  - rough estimate
+  - kinda
+  - sorta
+  - somewhat
+  # Asking for confirmation
+  - any idea
+  - any ideas
+  - anyone know
+  - does anyone know
+  - who knows
+  - can someone confirm
+  - could you confirm
+  - can you confirm
+  # Unresolved markers
+  - need to check
+  - need to verify
+  - to be checked
+  - to be confirmed
+  - TBC
+  - TBA
+  - to be determined
+  - to be decided
+  - FIXME
+
+nl:
+  # Spec list
+  - misschien
+  - denk ik
+  - geloof ik
+  - volgens mij
+  - ongeveer
+  - ergens
+  - iets van
+  - zoiets
+  # Mening en vermoeden
+  - ik denk
+  - ik denk dat
+  - ik geloof
+  - ik geloof dat
+  - dacht ik
+  - ik dacht
+  - ik vermoed
+  - vermoed ik
+  - ik veronderstel
+  - veronderstel ik
+  - ik neem aan
+  - neem ik aan
+  - ik gok
+  - gok ik
+  - ik schat
+  - schat ik
+  - lijkt me
+  - lijkt mij
+  - het lijkt erop
+  - het lijkt alsof
+  - blijkbaar
+  - schijnbaar
+  - naar verluidt
+  - in principe
+  - normaal gezien
+  - normaal gesproken
+  - als het goed is
+  # Waarschijnlijkheid
+  - misschien wel
+  - wellicht
+  - mogelijks
+  - eventueel
+  - waarschijnlijk
+  - vermoedelijk
+  - allicht
+  - zou kunnen
+  - het zou kunnen
+  - kan zijn
+  - het kan zijn dat
+  # Niet weten
+  - niet zeker
+  - niet helemaal zeker
+  - ik ben niet zeker
+  - ik ben er niet zeker van
+  - ik weet het niet
+  - ik weet het niet zeker
+  - weet ik niet
+  - geen idee
+  - geen flauw idee
+  - ik twijfel
+  - ik vraag me af
+  # Geheugen en kennis
+  - als ik me niet vergis
+  - als ik het goed heb
+  - als ik het me goed herinner
+  - als ik me goed herinner
+  - voor zover ik weet
+  - bij mijn weten
+  # Benadering
+  - zowat
+  - circa
+  - min of meer
+  - plus minus
+  - plusminus
+  - rond de
+  - zo'n beetje
+  - zoiets als
+  - een soort van
+  - soort van
+  - naar schatting
+  # Bevestiging vragen
+  - weet iemand
+  - wie weet
+  - klopt dat
+  - klopt dit
+  - kan iemand bevestigen
+  # Open punten
+  - na te kijken
+  - nog na te kijken
+  - moet ik nakijken
+  - te bevestigen
+  - nog te bevestigen
+  - nog te bepalen
+  - nader te bepalen
+  - NTB
+  - NNB
+
+fr:
+  # Liste de la spec
+  - je pense
+  - je crois
+  - peut-être
+  - à peu près
+  - environ
+  - en gros
+  - genre
+  # Opinion et supposition
+  - je pense que
+  - je crois que
+  - je suppose
+  - je présume
+  - j'imagine
+  - j'ai l'impression
+  - il me semble
+  - il semble
+  - on dirait
+  - je dirais
+  - apparemment
+  - a priori
+  - normalement
+  - en principe
+  - en théorie
+  - théoriquement
+  # Probabilité
+  - peut être
+  - probablement
+  - sans doute
+  - vraisemblablement
+  - possiblement
+  - éventuellement
+  # Ne pas savoir
+  - je ne suis pas sûr
+  - je ne suis pas sûre
+  - je ne suis pas certain
+  - je ne suis pas certaine
+  - pas certain
+  - pas certaine
+  - je ne sais pas
+  - je sais pas
+  - aucune idée
+  - j'en sais rien
+  - je me demande
+  # Mémoire et connaissance
+  - si je ne me trompe pas
+  - si je ne m'abuse
+  - sauf erreur
+  - sauf erreur de ma part
+  - si je me souviens bien
+  - si je me rappelle bien
+  - à ma connaissance
+  - pour autant que je sache
+  # Approximation
+  - approximativement
+  - aux alentours de
+  - grosso modo
+  - plus ou moins
+  - quelque chose comme
+  - une sorte de
+  - en quelque sorte
+  # Demande de confirmation
+  - quelqu'un sait
+  - quelqu'un peut confirmer
+  # Points ouverts
+  - à confirmer
+  - à vérifier
+  - à définir
+  - à déterminer
+  - à préciser
+  - à valider
+
+de:
+  # Meinung und Vermutung
+  - ich glaube
+  - glaube ich
+  - ich denke
+  - denke ich
+  - ich vermute
+  - ich schätze
+  - schätze ich
+  - ich nehme an
+  - anscheinend
+  - scheinbar
+  - angeblich
+  - offenbar
+  - im Prinzip
+  - theoretisch
+  - normalerweise
+  # Wahrscheinlichkeit
+  - vielleicht
+  - wahrscheinlich
+  - vermutlich
+  - möglicherweise
+  - eventuell
+  - womöglich
+  # Nicht wissen
+  - ich bin mir nicht sicher
+  - nicht sicher
+  - nicht ganz sicher
+  - keine Ahnung
+  - ich weiß nicht
+  - ich weiß es nicht
+  - weiß nicht
+  - ich frage mich
+  # Gedächtnis und Wissen
+  - soweit ich weiß
+  - meines Wissens
+  - wenn ich mich nicht irre
+  - wenn ich mich recht erinnere
+  # Annäherung
+  - ungefähr
+  - so ungefähr
+  - etwa
+  - schätzungsweise
+  - mehr oder weniger
+  - oder so
+  - irgendwie
+  - sozusagen
+  - quasi
+  # Bestätigung erfragen
+  - weiß jemand
+  - kann jemand bestätigen
+  # Offene Punkte
+  - zu klären
+  - noch zu klären
+  - zu prüfen
+  - noch zu prüfen
+  - zu bestätigen

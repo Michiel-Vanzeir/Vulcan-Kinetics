@@ -1,0 +1,32 @@
+{
+    "emp_014": {
+        "job_title": "Payroll consultant",
+        "seniority": "senior",
+        "department": "Payroll BE"
+    },
+    "emp_021": {
+        "job_title": "Reward specialist",
+        "seniority": "senior",
+        "department": "Reward"
+    },
+    "emp_003": {
+        "job_title": "Payroll administrator",
+        "seniority": "junior",
+        "department": "Payroll BE"
+    },
+    "emp_045": {
+        "job_title": "Legal counsel",
+        "seniority": "principal",
+        "department": "Legal"
+    },
+    "emp_077": {
+        "job_title": "HR business partner",
+        "seniority": "manager",
+        "department": "HR"
+    },
+    "emp_112": {
+        "job_title": "Software engineer",
+        "seniority": "intern",
+        "department": "Engineering"
+    }
+}
