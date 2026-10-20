@@ -1,129 +1,164 @@
 # IDEA.md: whoknows
- 
+
 *Expertise finds you, not the other way around.*
- 
-This file explains what we are building and why. Read it before working on the codebase. It describes the idea, not the current state of the code: check the repo and README for what is actually implemented.
- 
-## One-line summary
- 
-whoknows is a browser extension that notices when you hesitate while writing (a reply to a customer or colleague, or a document you are working on) or opens on a keyboard shortcut, and shows which colleagues know the topic, with trust signals that tell you how far to rely on them.
- 
-## Origin and current stage
- 
-Built for the SD Worx challenge at the Tectonic Hackathon. The original challenge: turn fragmented organisational knowledge into a trusted shared resource ("Find it. Understand it. Trust it."). SD Worx is a European HR and payroll company (10,000+ employees, payroll in 100+ countries), so most examples use payroll: year-end bonuses, joint committees like PC 200, notice periods per country.
- 
-We are now in the **finals** (32 teams out of 800+ participants). Hacking runs 09:00 to 16:00, submissions close at 16:00 sharp.
- 
-### Finals: SD Worx extra challenge
- 
-*"Can your solution stay trusted without becoming another task?"*
- 
-Knowledge changes, people change roles, expertise evolves. The solution has to stay useful, reliable and up to date without asking people to constantly document, update or maintain it. SD Worx asks for:
- 
-- automating what can reasonably happen in the background,
-- human verification only where judgement adds real value,
-- minimal effort and attention,
-- fitting naturally into existing ways of working,
-- being almost invisible when things work and clear when people need to understand, decide or act.
-They explicitly point beyond documents: the most useful answer is often *who* has dealt with this before, who really knows this customer or topic, who knows how it actually works here and why. Their examples: a new developer asking "how do we do this here, who should I talk to?" and someone launching a marketing campaign asking "who has done this before, what actually worked?"
- 
-Their closing line: *Find it. Understand it. Trust it. Keep it trusted. Make it transparent. Make it effortless.* "The goal is not zero human involvement. The goal is zero unnecessary effort."
- 
-This extra challenge fits whoknows closely. Section "How whoknows answers the extra challenge" below is the design direction for the finals build.
- 
-### Finals scoring
- 
-| Criterion | Weight |
+
+Read this before working on the codebase. It describes **what we are building and why**.
+The **Features** table tracks status; for exact behaviour, check the code and `README.md`.
+Maintenance rules are in `AGENTS.md`, section 7. In short:
+
+- Only real scope goes in this file. When a feature is dropped, delete it from **Features** completely.
+- **Not building** lists deliberate boundaries so nobody (human or AI) builds them by accident.
+- **Changelog** is history only. It is never a to-do list.
+
+---
+
+## At a glance
+
+| | |
 |---|---|
-| Creativity: how original is the idea? | 25% |
-| Pitch quality: how well did we present? | 25% |
-| Technical ability: does it work? | 20% |
-| Fit: did we solve the challenge? | 20% |
-| Security: Aikido audit, remaining vulnerabilities | 10% |
- 
-Pitch format: in person, 3-minute pitch plus 5 minutes of questions, strict timing. We do **not** present from our own device, so the demo must work from a pitch deck (ppt or pdf) with screenshots or an embedded recording. Builderbase submission by 16:00: short description, pitch presentation, public GitHub repo link, and screenshots of the final Aikido scan showing the repo name and remaining vulnerabilities.
- 
-What this means for the build: pitch quality now weighs as much as creativity, and technical ability counts less than before. A clear, reliable demo that can be captured in screenshots or a short recording beats extra features.
- 
+| **What** | Browser extension that notices when you hesitate while writing, or opens on a shortcut, and shows which colleagues know the topic, with trust signals. |
+| **Challenge** | SD Worx, Tectonic Hackathon finals: *"Can your solution stay trusted without becoming another task?"* |
+| **Deadline** | **16:00 sharp** on 2026-10-20 (hacking 09:00 to 16:00). |
+| **Deliverables** | Builderbase: short description, pitch deck (ppt/pdf), public GitHub repo link, screenshots of final Aikido scan. |
+| **Pitch** | 3 min in person + 5 min questions. **Not from our own device**: demo lives in the deck as screenshots or an embedded recording. |
+
+### Scoring
+
+| Criterion | Weight | What it means for us |
+|---|---|---|
+| Creativity | 25% | Push-not-pull and trust signals are the hook. Make them visible. |
+| Pitch quality | 25% | Equal to creativity. Reserve real time for the deck and rehearsal. |
+| Technical ability | 20% | It has to work, but a reliable demo beats extra features. |
+| Fit with challenge | 20% | Use the extra-challenge table below, honestly. |
+| Security (Aikido) | 10% | Scan early, fix, scan again before 16:00. |
+
+---
+
 ## The problem
- 
-In a large organisation, knowledge lives mostly in people, not documents. Searching documents returns ten answers but does not tell you which one to trust, and people finders tell you who might know something but not whether their knowledge is current. Expertise directories also go stale, because nobody keeps their profile up to date. The real moment of need is when you are writing something and realise you are not sure.
- 
+
+In a large organisation, knowledge lives mostly in people, not documents. A document search returns ten answers but doesn't tell you which one to trust. People finders tell you who might know something, but not whether that knowledge is still current. Expertise directories go stale because nobody keeps their profile up to date. The real moment of need comes while you're writing something and realise you're not sure.
+
+## Context: SD Worx
+
+SD Worx is a European HR and payroll company (10,000+ employees, payroll in 100+ countries), so the examples use payroll: year-end bonuses, joint committees like PC 200, and notice periods per country.
+
+Original challenge: turn fragmented organisational knowledge into a trusted shared resource ("Find it. Understand it. Trust it.").
+
+The finals extra challenge asks that the solution stay useful, reliable and up to date **without** people constantly documenting or maintaining it. Concretely:
+
+- automate what can reasonably happen in the background,
+- use human verification only where judgement adds real value,
+- ask for minimal effort and attention,
+- fit naturally into existing ways of working,
+- stay almost invisible when things work, and be clear when people need to understand, decide or act.
+
+SD Worx points beyond documents: the most useful answer is often *who* has dealt with this before. Their examples are a new developer asking "how do we do this here, who should I talk to?" and a marketer asking "who has done this before, what actually worked?"
+
+> *Find it. Understand it. Trust it. Keep it trusted. Make it transparent. Make it effortless.*
+> "The goal is not zero human involvement. The goal is zero unnecessary effort."
+
+We are one of 32 finalist teams (out of 800+ participants).
+
+---
+
 ## The core idea
- 
-Three choices make this different from a standard people finder:
- 
-1. **Push, not pull.** The user does not go to a search page. Expertise comes to them, inside the tool they are already writing in: mail, tickets, chat, or a document.
-2. **Trust signals, not just names.** Every suggested expert shows how recently they worked on the topic, how often, and which colleagues vouch for them. An expert with old knowledge is shown as such.
-3. **Consent built in.** Employees choose whether they are findable, per topic. Expertise is tracked automatically from their work, or manually if they prefer. Opt-out is enforced in the backend, not just hidden in the UI.
-Optional: when nobody has recent expertise on a topic, show a **knowledge gap** instead of a name.
- 
-## Where it triggers
- 
-Anywhere the user writes in the browser:
- 
-- **Replying** to a customer or colleague: email, ticket, chat message.
-- **Writing a document:** a procedure, a client memo, a proposal, a campaign plan, notes in a shared doc. The user does not have to be answering anyone; doubting while drafting is enough.
-### Hesitation signals
- 
-- A pause of 2 to 3 seconds mid-sentence after active typing.
-- Typing and then deleting a word or sentence.
-- Hedging language: "I believe", "I think", "not sure", "probably", "denk ik", "volgens mij".
-- In documents also: question marks or placeholders the writer leaves for themselves ("TBD", "check this", "??", "[ask someone]").
-### Manual trigger
- 
-- A keyboard shortcut opens the panel for the current text.
-- In a document, the user can select a passage and press the shortcut to ask "who knows about this part?".
-## User flow
- 
-1. The user is writing: a reply, or a section of a document.
-2. They hesitate, or press the shortcut (optionally with text selected).
-3. A side panel slides in with cards per detected topic.
-4. Each card shows the top expert, one line of evidence ("handled this 12 times, last 2 weeks ago"), trust signals, and an "Ask [name]" action.
-Example: Sarah De Vos (recent, frequent, vouched for by colleagues) ranks above Tom Janssens (wrote the original procedure but has not worked on the topic since 2024).
- 
-The panel stays out of the way when there is no doubt: no badges, no notifications, nothing to maintain.
- 
-## How whoknows answers the extra challenge
- 
+
+1. **Push, not pull.** The user never goes to a search page. Expertise comes to them inside the tool they're already writing in: mail, tickets, chat, or a document.
+2. **Trust signals, not just names.** Every suggested expert shows how recently and how often they worked on the topic, and which colleagues vouch for them. Old expertise is labelled as old.
+3. **Consent built in.** Employees choose per topic whether they're findable. The opt-out is enforced in the backend, not just hidden in the UI.
+4. **Knowledge gap.** When nobody has recent expertise on a topic, whoknows shows a gap instead of a weak name.
+
+### How whoknows answers the extra challenge
+
 | SD Worx asks | whoknows |
 |---|---|
-| Automate what can happen in the background | Expertise is built from signals that everyday work already creates: tickets resolved, documents written or edited, questions answered in chat. Nobody fills in a profile. |
-| Verify when human judgement adds value | The only human step is light and happens at the moment it matters: when someone asks an expert through whoknows and the answer helps, that counts as a vouch. Stale expertise decays automatically instead of being cleaned up by hand. |
-| Minimise effort and attention | Invisible until the user hesitates. One shortcut otherwise. |
-| Integrate into existing ways of working | Lives as a side panel in the tools people already write in. No new app. |
-| Make it understandable when people need to act | Every suggestion says *why*: the evidence, its age, who vouched. Stale or weak expertise is labelled as such. |
-| Think beyond documents | The answer whoknows gives is a person and the reason to trust them, not another document. |
- 
-Keep this table honest: only claim in the pitch what the build actually does.
- 
+| Automate what can happen in the background | Expertise is built from signals that everyday work already creates: tickets resolved, documents written, questions answered in chat. Nobody fills in a profile. |
+| Verify when human judgement adds value | The only human step is light and comes when it matters: if someone asks an expert through whoknows and the answer helps, that counts as a vouch. Stale expertise decays automatically. |
+| Minimise effort and attention | Invisible until the user hesitates. Otherwise one shortcut. |
+| Integrate into existing ways of working | A side panel in the tools people already write in. No new app. |
+| Make it understandable when people need to act | Every suggestion says *why*: the evidence, how old it is, and who vouched. Stale or weak expertise is labelled as such. |
+| Think beyond documents | The answer is a person and the reason to trust them, not another document. |
+
+**Keep this table honest.** Before the pitch, check every row against the **Features** table. Only claim what has status `done`.
+
+---
+
+## User flow
+
+1. The user is writing a reply or a section of a document.
+2. They hesitate, or press the shortcut (optionally with text selected).
+3. A side panel slides in with one card per detected topic.
+4. Each card shows the top expert, one line of evidence ("handled this 12 times, last 2 weeks ago"), trust signals, and an "Ask [name]" action.
+
+Example: Sarah De Vos (recent, frequent, vouched for) ranks above Tom Janssens (wrote the original procedure but hasn't touched the topic since 2024).
+
+When there's no doubt, the panel stays out of the way: no badges, no notifications, nothing to maintain.
+
+### Triggers
+
+**Where:** anywhere the user writes in the browser.
+- **Replying** to a customer or colleague (email, ticket, chat).
+- **Writing a document** (procedure, client memo, proposal, campaign plan, shared notes). Doubting while drafting is enough; the user doesn't have to be answering anyone.
+
+**Hesitation signals:**
+- A 2 to 3 second pause mid-sentence after active typing.
+- Typing and then deleting a word or sentence.
+- Hedging language: "I believe", "I think", "not sure", "probably", "denk ik", "volgens mij".
+- In documents: placeholders the writer leaves for themselves ("TBD", "check this", "??", "[ask someone]").
+
+**Manual:** a keyboard shortcut opens the panel for the current text. With a passage selected, it answers "who knows about this part?".
+
+---
+
+## Features
+
+Only real scope. Status: `planned`, `in progress (name)`, `done`.
+
+| # | Feature | Status | Owner |
+|---|---|---|---|
+| 1 | Synthetic dataset: 15 to 20 employees with the demo patterns (fresh expert, stale expert, opted-out person, knowledge-gap topic) | planned | |
+| 2 | Backend `/analyze`: text in, topics + hesitation signals out | planned | |
+| 3 | Backend `/experts`: topic in, top 3 experts + trust signals out, opt-out filtered | planned | |
+| 4 | Ranking: relevance + recency decay + frequency + vouches, with a knowledge-gap threshold | planned | |
+| 5 | Extension content script on textarea / contenteditable | planned | |
+| 6 | Hesitation detection (pause, delete, hedging words, placeholders) | planned | |
+| 7 | Keyboard shortcut trigger (+ selected text) | planned | |
+| 8 | Side panel with expert cards, evidence line, trust signals, "Ask [name]" | planned | |
+| 9 | Vouch on helpful answer (feeds back into ranking) | planned | |
+| 10 | Mock demo pages: mail, chat, contenteditable document | planned | |
+| 11 | Per-topic opt-out UI for employees | planned | |
+
+---
+
 ## Architecture
- 
+
 ```
-Chrome extension (Manifest v3)              Backend (FastAPI or Flask)
+Chrome extension (Manifest v3)              Backend (Python, FastAPI or Flask: TBD)
 - content script on the active text field   - /analyze: text in, topics + hesitation signals out
-  (textarea, contenteditable, doc editors)  - /experts: topic in, top 3 experts + trust signals out
+  (textarea, contenteditable)               - /experts: topic in, top 3 experts + trust signals out
 - hesitation detection + shortcut           - expertise graph built from employee data (JSON)
 - side panel rendering expert cards
 ```
- 
-- Topic matching: embeddings against a fixed list of 20 to 30 topics. Keyword matching is the fallback if latency is a problem.
-- Debounce requests (2 to 3 seconds) and cache results.
-- For documents, send the current paragraph or the selection, not the whole document.
-- Rich editors like Google Docs render text in a non-standard way and are hard to read from a content script. For the demo, use a simple mock document page built on contenteditable rather than fighting a real editor.
+
+- Topic matching uses embeddings against a fixed list of 20 to 30 topics, with keyword matching as the fallback if latency is a problem.
+- Debounce requests (2 to 3 s) and cache the results.
+- For documents, send the current paragraph or the selection, never the whole document.
+- Real rich editors like Google Docs are hard to read from a content script, so the demo uses our own contenteditable mock pages.
+
 ### Ranking
- 
+
 ```
-score = relevance (embedding match on evidence)
-      + recency bonus (exponential decay over time)
-      + frequency bonus (times handled)
-      + peer bonus (times vouched for)
-opted out of this topic -> never returned
-best score below threshold -> "knowledge gap"
+score = relevance  (embedding match on evidence)
+      + recency    (exponential decay over time)
+      + frequency  (times handled)
+      + peer       (times vouched for)
+
+opted out of this topic         -> never returned
+best score below threshold      -> "knowledge gap"
 ```
- 
+
 ### Data model (example)
- 
+
 ```json
 {
   "id": "emp_014",
@@ -143,30 +178,77 @@ best score below threshold -> "knowledge gap"
   ]
 }
 ```
- 
-Evidence types: `ticket`, `document`, `chat_answer`, `vouch`. All of them are things work already produces, which is the point of the extra challenge.
- 
-All data is synthetic: a fictional company of 15 to 20 employees with deliberate patterns (one fresh expert, one stale expert, one opted-out person, one topic with no recent expertise). Never use real or confidential data.
- 
+
+Evidence types are `ticket`, `document`, `chat_answer` and `vouch`. All of them are things work already produces, which is the point of the extra challenge.
+
+**All data is synthetic.** Never use real or confidential data.
+
+---
+
 ## Non-negotiables
- 
-- **Security (10%):** check authorisation server-side on every ID (IDOR is the obvious risk in a tool that exposes data about colleagues). No API keys in the repo; use environment variables. Keep the endpoint surface small. Run Aikido early so there is time for fixes and a final scan before 16:00.
+
+- **Security (10%):** check authorisation server-side on every ID (IDOR is the obvious risk in a tool that exposes data about colleagues). Keep API keys in environment variables, never in the repo. Keep the endpoint surface small. Run Aikido early.
 - **Consent:** opt-out filtering happens in the backend.
 - **Honesty in the UI:** show stale or weak expertise as stale or weak. Never present a guess as certainty.
-- **Show only what works:** the pitch, deck and description must not claim features that are not implemented.
-- **Demo without our own device:** every key moment must be capturable as a screenshot or short recording for the deck.
-## Out of scope (for now)
- 
-- Routing incoming info@ customer emails to the right person. Same engine, different input; a natural extension, not part of the core.
-- Real integrations with Gmail, Outlook, Teams or Google Docs. The demo uses mock mail, chat and document pages.
-- Inferring "silent experts" from behaviour beyond explicit work evidence, because of GDPR concerns.
+- **Show only what works:** the pitch, deck and description must not claim features that aren't `done`.
+- **Demo without our own device:** every key moment must be capturable as a screenshot or short recording.
+
+## Not building
+
+Deliberate boundaries. Don't build these, even if they seem like a quick win.
+
+- Routing incoming info@ emails to the right person (same engine, different input; mention it as a future extension in the pitch only).
+- Real integrations with Gmail, Outlook, Teams or Google Docs. The demo uses mock pages.
+- Inferring "silent experts" from behaviour beyond explicit work evidence (GDPR).
+
+---
+
+## Team & ownership
+
+| Person | Area |
+|---|---|
+| Michiel | _TBD_ |
+| _TBD_ | _TBD_ |
+| _TBD_ | _TBD_ |
+| _TBD_ | _TBD_ |
+
+## Demo plan (3 min)
+
+1. _TBD: problem in one sentence (the moment of doubt)._
+2. _TBD: hesitation in a mail reply leads to a panel showing Sarah above Tom, and why._
+3. _TBD: shortcut on a selected passage in a document._
+4. _TBD: knowledge gap + opt-out respected._
+5. _TBD: how it stays trusted with zero maintenance (extra-challenge table)._
+
+## Submission checklist (before 16:00)
+
+- [ ] **Delete `previous-round/` from the repo** (reference only; it would count in the Aikido scan).
+- [ ] Final Aikido scan; screenshot showing repo name and remaining vulnerabilities.
+- [ ] Repo is public; `README.md` has working setup and run steps; no secrets committed.
+- [ ] Pitch deck (ppt/pdf) with demo screenshots or an embedded recording, tested on another machine.
+- [ ] Every pitch claim matches a `done` feature.
+- [ ] Builderbase: description, deck, repo link, Aikido screenshots.
+
+---
+
 ## Branding
- 
+
 - **Name:** whoknows (lowercase). "Who knows?" is the thought at the moment of doubt.
-- **Logo:** a text cursor and two white dots (typing, hesitating); the third dot becomes a yellow person (the colleague who knows).
+- **Logo:** a text cursor and two white dots (typing, hesitating). The third dot becomes a yellow person (the colleague who knows).
 - **Colours:** navy `#1B2A4E`, highlighter yellow `#FFD23F`, white `#FFFFFF`, muted blue-grey `#A0ACC8`.
 - **Typeface:** Bricolage Grotesque, extra bold for the wordmark.
 - **Writing style:** plain, direct, no overclaiming, no em dashes.
-## Project description
- 
-> Expertise finds you, not the other way around. Our browser plugin detects when you hesitate while writing, whether you are replying to a customer or drafting a document, or you can trigger it yourself with a shortcut. It then shows which colleagues have the expertise you need, with trust signals: how recent their expertise is, how often they handled it and who else vouches for them. It learns from the work people already do, so nobody has to keep a profile up to date.
+
+## Project description (for Builderbase)
+
+> Expertise finds you, not the other way around. Our browser plugin detects when you hesitate while writing, whether you're replying to a customer or drafting a document, or you can trigger it yourself with a shortcut. It then shows which colleagues have the expertise you need, with trust signals: how recent their expertise is, how often they've handled it and who vouches for them. It learns from the work people already do, so nobody has to keep a profile up to date.
+
+---
+
+## Changelog
+
+Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-level changes only.
+
+- 2026-10-20 (Michiel): Created repo conventions (`AGENTS.md`, `CLAUDE.md`, `IDEA.md`).
+- 2026-10-20 (Michiel): Added previous-round code in `previous-round/` as read-only reference. Starting fresh, not building on it.
+- 2026-10-20 (Michiel): Finals idea set: whoknows, carried over from the previous round and extended for the SD Worx extra challenge (zero-maintenance trust: expertise from work signals, vouches, automatic decay). Added document writing as a trigger next to replies.

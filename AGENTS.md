@@ -21,12 +21,15 @@ Four teammates work in parallel, each with their own AI assistant, so the code h
 - Never edit, run, build, or import from it, and don't add it to tooling (lint, tests, build).
 - You may *read* it for ideas, domain logic, or data, but rewrite anything you reuse so it follows the rules in this file. Don't copy its patterns or structure.
 - Ignore it when you search the codebase unless the human asks about it.
+- **It must be deleted before submission** (see the checklist in `IDEA.md`). If the human mentions submitting, the final Aikido scan, or wrapping up, and the folder still exists, remind them.
 
 ## 1. Project stack
 
-> **TODO (fill in when decided):** language(s), framework, package manager, runtime versions, database, hosting.
+> **TODO (fill in the remaining TBDs when decided).**
 
-- Language / framework: _TBD_
+- Extension: Chrome extension, Manifest v3, TypeScript (build tool _TBD_)
+- Backend: Python, FastAPI or Flask (_TBD_)
+- Data: synthetic JSON only, never real or confidential data
 - Package manager: _TBD_ (use only this one; never mix npm/yarn/pnpm, or pip/poetry/uv)
 - How to run locally: _TBD_ (keep `README.md` in sync)
 - How to run tests / lint / format: _TBD_
@@ -88,13 +91,13 @@ Names should be descriptive. Avoid `data`, `temp`, `x2`, `handleStuff`.
 
 ## 7. Idea log (`IDEA.md`): mandatory upkeep
 
-`IDEA.md` has two parts:
+`IDEA.md` describes the idea (problem, core idea, flow, architecture, branding). Three parts need special care:
 
-1. **Current idea**: the pitch, the problem, the user, and the **feature list as it stands now**.
-   - Only features we are actually building or have built belong here.
-   - When a feature is dropped, **delete it from this section completely**. Don't strike it through and don't move it to a "maybe later" list. The point is that anyone (human or AI) reading it sees only the real scope.
-   - Each feature has a status: `planned`, `in progress (name)`, or `done`.
-2. **Changelog**: an append-only, timestamped log of how the *idea* evolved: pivots, scope cuts, key decisions, and why.
+1. **Features**: the table of what we're building, with a status (`planned`, `in progress (name)`, or `done`) and an owner.
+   - Only features we're actually building or have built belong here.
+   - When a feature is dropped, **delete its row and every description of it elsewhere in `IDEA.md`** (user flow, architecture, extra-challenge table, project description). Don't strike it through and don't move it to a "maybe later" list. Anyone reading the file must see only the real scope.
+2. **Not building**: a short list of deliberate boundaries (things people might be tempted to build). This list isn't a backlog. Never build anything on it.
+3. **Changelog**: an append-only, timestamped log of how the *idea* evolved: pivots, scope cuts, key decisions, and why.
    - Format: `- YYYY-MM-DD HH:MM (name): what changed and why`.
    - Keep it to idea-level changes. Don't log every bug fix (git does that).
    - A scope cut may be logged as one line ("cut X to focus on Y") so the reasoning isn't lost. But the cut feature must never reappear in the *Current idea* section, and AI assistants must **never treat changelog entries as things to build**.
@@ -104,7 +107,10 @@ When a task adds, finishes, or removes a feature, the assistant updates `IDEA.md
 ## 8. Keep the demo in mind
 
 - Choose working end-to-end over perfect parts. Hardcoded or mock data is fine if it's marked `HACK:`.
-- Don't start large rewrites in the final hours.
+- Don't start large rewrites in the final hours. Hard deadline: **16:00**.
+- The pitch is presented from a deck, not a live device, so UI states must look good in screenshots.
+- Security is scored by an Aikido scan: validate input, check authorisation server-side on every ID, keep dependencies minimal and up to date.
+- Follow the branding in `IDEA.md` (colours, font, lowercase "whoknows"). UI copy is plain and direct, with no em dashes.
 - Keep `README.md` runnable: setup steps, env vars, and the run command. A judge or teammate must be able to start it from scratch.
 
 ## 9. How the AI assistant should behave
