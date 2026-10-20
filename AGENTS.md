@@ -28,8 +28,7 @@ Four teammates work in parallel, each with their own AI assistant, so the code h
 
 > **TODO (fill in the remaining TBDs when decided).**
 
-- Capture agent: local desktop agent, one OS for the demo (language/OS _TBD_, see "Open decisions" in `IDEA.md`)
-- Extension: optional companion, Chrome extension, Manifest v3, TypeScript (build tool _TBD_)
+- Capture agent: Python 3.13, Windows first (pynput + uiautomation), in `capture-agent/`. Setup, run and test steps are in `capture-agent/README.md`.
 - Backend: Python, FastAPI or Flask (_TBD_)
 - Data: synthetic JSON only, never real or confidential data
 - Package manager: _TBD_ (use only this one; never mix npm/yarn/pnpm, or pip/poetry/uv)
@@ -43,7 +42,7 @@ Don't add a new dependency unless you have to. If you add one, say so explicitly
 The full spec is under "Capture agent spec" in `IDEA.md`; read it before touching agent, hesitation or topic-extraction code. Never break these:
 - **Raw typed text never leaves the machine.** Don't log it, print it, write it to disk, or put it in any payload, not even for debugging.
 - **All network calls from the agent go through one send function in one file**, so the privacy guarantee is auditable. Don't add a second path.
-- Skip password fields entirely. Strip numbers and email addresses before topic extraction.
+- Skip password fields, other sensitive fields, private windows and non-work browser pages entirely. Strip numbers and email addresses before topic extraction. When in doubt, drop the keystroke.
 - Topic output is always a subset of the fixed vocabulary, never free text.
 
 ## 2. Language
