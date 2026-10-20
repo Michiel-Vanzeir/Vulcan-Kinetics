@@ -401,6 +401,20 @@ def test_doubt_alert_respects_cooldown_per_context():
     assert third and third["doubt_alert"] is not None
 
 
+def test_double_question_mark_fires_doubt_alert_but_single_does_not():
+    single = build_filter().process(_payload(topics=["notice_period"], question_marks_written=1))
+    assert single is None
+    double = build_filter().process(_payload(topics=["notice_period"], question_marks_written=2))
+    assert double["doubt_alert"] is not None
+
+
+def test_one_pause_or_one_hedge_alone_does_not_fire():
+    for signal in ({"pauses": 1}, {"hedge_words": 1}):
+        assert build_filter().process(_payload(topics=["notice_period"], **signal)) is None
+    out = build_filter().process(_payload(topics=["notice_period"], pauses=1, hedge_words=1))
+    assert out["doubt_alert"] is not None
+
+
 def test_doubt_push_callback_is_invoked():
     received = []
     f = ExpertiseFilter(PersonStore(":memory:"), on_doubt_push=received.append)

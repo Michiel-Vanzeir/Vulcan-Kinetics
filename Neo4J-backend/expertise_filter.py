@@ -41,13 +41,17 @@ CONFIG: dict[str, float] = {
     "edge_asked_about_weight": 0.3,            # asker -> each participant
 
     # Doubt (person is stuck on the topic -> a candidate to be helped).
-    "doubt_hedge_weight": 0.08,                # per hedge
-    "doubt_placeholder_weight": 0.15,
-    "doubt_question_mark_weight": 0.10,        # per '?' when NOT a reply
+    # Tuned against push_doubt_threshold so one pause plus one more signal (hedge, burst,
+    # another long pause) opens the panel, as in IDEA.md's HESITATING -> STRUGGLING rule,
+    # while a single pause, hedge or '?' does not. A placeholder or "??" alone is enough.
+    "doubt_pause_weight": 0.10,                # per pause > 800 ms
+    "doubt_hedge_weight": 0.20,                # per hedge
+    "doubt_placeholder_weight": 0.30,
+    "doubt_question_mark_weight": 0.15,        # per '?' when NOT a reply
     "doubt_question_mark_reply_weight": 0.02,  # per '?' when IS a reply
-    "doubt_long_pause_weight": 0.08,
-    "doubt_deletion_burst_weight": 0.07,
-    "doubt_rewrite_loop_weight": 0.10,
+    "doubt_long_pause_weight": 0.15,           # per pause > 2 s, on top of its pause weight
+    "doubt_deletion_burst_weight": 0.20,
+    "doubt_rewrite_loop_weight": 0.15,
     "doubt_window_switch_weight": 0.06,
     # Window switches scale per minute of context_age so one switch in 30s hurts
     # more than one switch in a 10-minute session.
@@ -65,7 +69,7 @@ CONFIG: dict[str, float] = {
     # Upstream push: when doubt crosses this threshold we send a signal back to
     # the capture agent asking it to open the side panel. The cooldown keeps
     # one hesitant draft from firing on every keystroke payload.
-    "push_doubt_threshold": 0.55,
+    "push_doubt_threshold": 0.30,
     "push_cooldown_ms": 15_000,
 
     # Composite weights for is_expert().
@@ -282,6 +286,7 @@ def doubt_score(p: SignalPayload) -> float:
     score += cfg["doubt_hedge_weight"] * p.hedge_words
     score += cfg["doubt_placeholder_weight"] * p.placeholders
     score += q_weight * p.question_marks_written
+    score += cfg["doubt_pause_weight"] * p.pauses
     score += cfg["doubt_long_pause_weight"] * p.long_pauses
     score += cfg["doubt_deletion_burst_weight"] * p.deletion_bursts
     score += cfg["doubt_rewrite_loop_weight"] * p.rewrite_loops
@@ -509,7 +514,8 @@ class ExpertiseFilter:
                      scores: dict[str, Any]) -> dict[str, Any] | None:
         """Upstream push: 'this person is having doubts'. Cooldown per context."""
         cfg = CONFIG
-        if scores["doubt"] < cfg["push_doubt_threshold"]:
+        # Rounded so sums that land exactly on the threshold (0.15 + 0.15) aren't lost to float error.
+        if round(scores["doubt"], 6) < cfg["push_doubt_threshold"]:
             return None
         last = self._last_push_ms.get(snap.context_id, 0)
         if snap.ts - last < cfg["push_cooldown_ms"]:
