@@ -16,6 +16,9 @@ import uiautomation as auto
 
 from agent.surfaces import is_sensitive_field, surface_name
 
+# uiautomation writes its own log to @AutomationLog.txt by default; the agent writes nothing to disk.
+auto.Logger.SetLogFile("")
+
 _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 _user32 = ctypes.windll.user32
 _kernel32 = ctypes.windll.kernel32
