@@ -11,6 +11,7 @@ Four teammates work in parallel, each with their own AI assistant, so the code h
 ## 0. Before you start any task
 
 1. Read `IDEA.md`. It describes what we are building *right now*. Do not build features that aren't listed there.
+   Team reference material (architecture diagrams, explainers) lives in `docs/`. Check it when you need to understand how the parts fit together. `docs/Structure.png` is the system diagram.
 2. Run `git pull` (or ask the human to) before you start editing. Four people are pushing all the time.
 3. Stay inside the area of the task you were given. Don't refactor, rename, or reformat files you weren't asked to touch. That causes merge conflicts for the others.
 4. If the task changes the idea or scope, update `IDEA.md` in the same change (see section 7).
@@ -27,14 +28,24 @@ Four teammates work in parallel, each with their own AI assistant, so the code h
 
 > **TODO (fill in the remaining TBDs when decided).**
 
-- Extension: Chrome extension, Manifest v3, TypeScript (build tool _TBD_)
-- Backend: Python, FastAPI or Flask (_TBD_)
+- Capture agent: local desktop agent, one OS for the demo (language/OS _TBD_, see "Open decisions" in `IDEA.md`)
+- Extension: optional companion, Chrome extension, Manifest v3, TypeScript (build tool _TBD_)
+- Backend: Python, Flask + Neo4j (the `Neo4J-backend/` code)
 - Data: synthetic JSON only, never real or confidential data
-- Package manager: _TBD_ (use only this one; never mix npm/yarn/pnpm, or pip/poetry/uv)
-- How to run locally: _TBD_ (keep `README.md` in sync)
+- Package manager: one per ecosystem, never mixed. Python backend uses **uv** (never pip/poetry);
+  JS/TS package manager _TBD_ (never mix npm/yarn/pnpm).
+- How to run locally: backend in `Neo4J-backend/README.md`; agent/extension _TBD_
 - How to run tests / lint / format: _TBD_
 
 Don't add a new dependency unless you have to. If you add one, say so explicitly in your summary so the team can approve it. Prefer what is already installed.
+
+### Capture agent: hard rules
+
+The full spec is under "Capture agent spec" in `IDEA.md`; read it before touching agent, hesitation or topic-extraction code. Never break these:
+- **Raw typed text never leaves the machine.** Don't log it, print it, write it to disk, or put it in any payload, not even for debugging.
+- **All network calls from the agent go through one send function in one file**, so the privacy guarantee is auditable. Don't add a second path.
+- Skip password fields, other sensitive fields, private windows and non-work browser pages entirely. Strip numbers and email addresses before topic extraction. When in doubt, drop the keystroke.
+- Topic output is always a subset of the fixed vocabulary, never free text.
 
 ## 2. Language
 
