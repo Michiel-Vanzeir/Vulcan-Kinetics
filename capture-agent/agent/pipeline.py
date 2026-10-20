@@ -140,7 +140,11 @@ class Pipeline:
 
         def ask() -> None:
             experts = self._transport.request_experts(topics)
-            names = ", ".join(f"{e['user_id']} on {e['topic']} ({e['score']:.2f})" for e in experts)
+            names = ", ".join(
+                f"{(e.get('profile') or {}).get('name') or e['user_id']} on {e['topic']}"
+                f" ({e['score']:.2f})"
+                for e in experts
+            )
             print(f"<- who knows {topics}: {names or 'nobody yet (knowledge gap)'}", flush=True)
 
         if topics:

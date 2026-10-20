@@ -307,7 +307,7 @@ function renderInbox() {
     identity.append(createPortrait(person), element('div', 'name', person.name));
     item.append(identity, element('p', 'inbox-preview',
       `${latest.senderId === 'you' ? 'You: ' : ''}${latest.text}`),
-      element('span', 'inbox-kind', unread ? 'New message ? Open to reply' : 'Open conversation'));
+      element('span', 'inbox-kind', unread ? 'New message · Open to reply' : 'Open conversation'));
     inbox.append(item);
   }
   if (!inbox.children.length) inbox.append(element('p', 'muted', 'You are all caught up.'));
@@ -340,7 +340,7 @@ async function openChat(personId, from = chatReturn) {
   const contact = element('div', 'chat-contact');
   const identity = element('div');
   identity.append(element('h1', 'chat-heading', person.name),
-    element('p', 'chat-subtitle', `${person.role} ? ${person.country}`),
+    element('p', 'chat-subtitle', `${person.role} · ${person.country}`),
     element('p', 'chat-topic', person.topic));
   contact.append(createPortrait(person), identity);
   header.append(back, contact);

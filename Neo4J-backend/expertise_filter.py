@@ -399,6 +399,10 @@ class PersonStore:
         )
         self._conn.commit()
 
+    def all_user_ids(self) -> list[str]:
+        """Every user_id with a document, for ranking experts across people."""
+        return [row[0] for row in self._conn.execute("SELECT user_id FROM persons")]
+
 
 # =============================================================================
 # Directory (profile enrichment)

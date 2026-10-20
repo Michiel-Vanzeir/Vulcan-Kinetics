@@ -30,6 +30,9 @@ All data here is synthetic. Never load real or confidential data (AGENTS.md).
    uv sync                                             # creates .venv from uv.lock
    cp env.example .env                                 # Windows: copy env.example .env
    ```
+   Without uv (verified on Python 3.14, Windows): `py -3 -m venv .venv`, then
+   `.venv/Scripts/python -m pip install flask neo4j pydantic python-dotenv pytest`, and use
+   `.venv/Scripts/python <script>` wherever this file says `uv run <script>`.
    Then choose an embedding backend:
    - **Real embeddings:** `uv sync --extra ml` (large: installs torch; the first
      call also downloads `all-MiniLM-L6-v2`, ~90 MB).
@@ -82,6 +85,7 @@ All data here is synthetic. Never load real or confidential data (AGENTS.md).
 | GET | `/who-knows?q=...` | `who_knows` (ranked people; see [Ranking](#ranking)) |
 | GET | `/pings` | `ping_counts` (people by how often they were surfaced; management view) |
 | POST | `/analyze`, `/experts` | capture-agent signal path (`app/signals.py`, separate scorer) |
+| GET | `/health` | liveness for the settings popup; needs no database |
 
 ### Ranking
 
@@ -197,9 +201,13 @@ derived from user text).
 ## Layout
 
 ```
-schema.py / seed.py     setup scripts
-run.py                  Flask entry point
+schema.py / seed.py     setup scripts (Neo4j)
+seed_signals.py         synthetic answering history for the expertise filter (SQLite)
+run.py                  Flask entry point (127.0.0.1:5000; FLASK_DEBUG=1 for the debugger)
+expertise_filter.py     signal scoring + person store used by /analyze and /experts
+directory.json          synthetic profiles (name, job title, seniority) by emp_* id
 app/api.py              routes + error mapping
+app/signals.py          /analyze and /experts for the capture agent
 app/services.py        validation, hierarchy rules, embedding call, transactions
 app/repository.py      all Cypher
 app/hierarchy.py       node types + allowed parents + client-linkable types
@@ -218,13 +226,23 @@ filter rates as experts, best first. Free-text strings are rejected with 400. Th
 SQLite store is `whoknows.db` (git-ignored; `WHOKNOWS_FILTER_DB` overrides) and is only used from
 one dedicated thread, since SQLite connections can't be shared across Flask's request threads.
 
-Tests: `uv run --with pytest pytest tests`.
+The store starts empty, and live typing never counts as answering yet (the agent always sends
+`is_reply: false`), so `/experts` returns nobody until it is seeded. Before starting the API:
+
+```bash
+uv run seed_signals.py --reset    # Sarah, Emma and Lucas become experts; Tom (2024) stays hidden
+```
+
+The people and topics match the panel's fixtures in `../preview-api.mjs`. `--reset` needs the
+API stopped, because Windows can't delete a database another process has open.
+
+Tests: `uv run --with pytest pytest`.
 
 ## Expertise filter (`expertise_filter.py`)
 
 A standalone, stdlib-only module that consumes payloads from the capture agent
-(not in this repo) and decides when to route a tip to an expert. It is wired up
-separately from the Neo4j graph so it can run on its own for the demo.
+(`../capture-agent/`, via `app/signals.py`) and decides when to route a tip to an expert.
+It is separate from the Neo4j graph so it runs without a database server.
 
 ### Payload schema (summary)
 
@@ -233,7 +251,7 @@ Each payload is one trigger inside one focused text field. Every count is
 the latest payload's values — never sum across payloads.
 
 Fields: `user_id`, `context_id`, `ts` (Unix ms), `trigger`
-(`pause|deletion_burst|punctuation|hedge|idle_flush|manual`), timing/pause
+(`pause|deletion_burst|punctuation|hedge|placeholder|idle_flush|manual|submit`), timing/pause
 counts, deletions, fluency, hedge words and placeholders, question-mark counts,
 window switches and pastes, `surface` (enum with `"other"` fallback),
 `is_reply`, prior/current message char counts, baseline pause/deletion rate,
@@ -288,10 +306,10 @@ Three scores are computed per snapshot (always the latest payload for that
   alert_or_none}`.
   - `tip` — the routing dict for the side panel
     (`author`, `recipient`, `topic`, `score`, `reasons`).
-  - `interactions` — edges in the shape `app/network.py` already consumes
-    (`compose_answer` on answering, `asked_about` on asking). The network
-    graph gets better passively from these without anyone filling in a
-    profile. Empty when `participants` is `None`.
+  - `interactions` — weighted people-network edges (`compose_answer` on
+    answering, `asked_about` on asking), one per counterpart. Empty when
+    `participants` is `None`, which is always the case today: `/analyze` has no
+    participant source yet, and nothing consumes these edges yet.
   - `doubt_alert` — the upstream push signal: *"this person is having
     doubts"*. Fires the moment doubt crosses `push_doubt_threshold`,
     respects `push_cooldown_ms` per context (so one hesitant draft doesn't
@@ -319,8 +337,8 @@ All weights, thresholds, half-life, and veto ratios live in the top-level
 - Cumulative counts are reconciled with `max()` of the live snapshot and the
   stored total, so re-sending a payload (or a later payload for the same
   `context_id`) never double-counts pasted or authored characters.
-- Decay half-life defaults to **30 days**; it mirrors `app/network.py`'s
-  lazy-decay pattern but on millisecond timestamps.
+- Decay half-life defaults to **30 days**, applied lazily on read and write, on
+  millisecond timestamps.
 - Surface breadth is `len(surfaces_seen) / len(SURFACES)`; the enum covers
   outlook/teams/gmail/word plus `other`.
 - Payloads with unknown surfaces fall back to `other`; payloads with

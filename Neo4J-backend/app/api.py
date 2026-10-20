@@ -13,6 +13,12 @@ def _flag(name: str, default: bool) -> bool:
     return default if val is None else val.lower() in ("1", "true", "yes")
 
 
+@bp.get("/health")
+def health():
+    """Liveness check for the settings popup. Touches no database, so it works without Neo4j."""
+    return jsonify({"status": "ok"})
+
+
 @bp.post("/nodes")
 def create_node():
     data = CreateNodeIn.model_validate(request.get_json(force=True))

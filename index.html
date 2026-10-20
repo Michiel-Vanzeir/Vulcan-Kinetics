@@ -47,7 +47,7 @@
         <option value="checking">Simulate checking</option>
       </select>
       <button type="button" id="refresh">Reload popup</button>
-      <p id="mode-note">Checks http://127.0.0.1:8000/health through the preview server.</p>
+      <p id="mode-note">Checks http://127.0.0.1:5000/health through the preview server.</p>
       <p>Edit popup.html, popup.css or popup.js, then reload the popup to see changes.</p>
       <a href="popup.html">Open popup on its own</a>
     </main>
@@ -61,7 +61,7 @@
       function reloadPopup() {
         popup.src = `popup.html?status=${encodeURIComponent(connection.value)}`;
         document.querySelector('#mode-note').textContent = connection.value === 'live'
-          ? 'Checks http://127.0.0.1:8000/health through the preview server.'
+          ? 'Checks http://127.0.0.1:5000/health through the preview server.'
           : 'Simulated status for visual testing. No backend request is made.';
       }
       connection.addEventListener('change', reloadPopup);

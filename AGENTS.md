@@ -34,8 +34,8 @@ Four teammates work in parallel, each with their own AI assistant, so the code h
 - Data: synthetic JSON only, never real or confidential data
 - Package manager: one per ecosystem, never mixed. Python backend uses **uv** (never pip/poetry);
   JS/TS package manager _TBD_ (never mix npm/yarn/pnpm).
-- How to run locally: backend in `Neo4J-backend/README.md`; agent/extension _TBD_
-- How to run tests / lint / format: _TBD_
+- How to run locally: the full demo (backend, panel, agent) in "Run the full demo" in `README.md`
+- How to run tests: listed at the end of that same section; lint / format _TBD_
 
 Don't add a new dependency unless you have to. If you add one, say so explicitly in your summary so the team can approve it. Prefer what is already installed.
 
