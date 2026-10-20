@@ -1,0 +1,2218 @@
+{
+  "employees": [
+    {
+      "id": "emp_014",
+      "name": "Sarah De Vos",
+      "role": "Payroll consultant",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for part-time employee calculated",
+          "date": "2026-09-16",
+          "vouched_by": [
+            "emp_003",
+            "emp_021"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Part-time schedule change mid-month",
+          "date": "2026-09-12",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus pro rata for 4/5 part-timer",
+          "date": "2026-09-09",
+          "vouched_by": [
+            "emp_007"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Client question: year-end bonus after long-term sickness",
+          "date": "2026-08-31",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Checked year-end bonus reference period for PC 200 client",
+          "date": "2026-08-23",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for mid-year leaver",
+          "date": "2026-08-16",
+          "vouched_by": [
+            "emp_010"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "year_end_bonus_pc200",
+          "text": "Explained year-end bonus rules to new team member",
+          "date": "2026-08-09",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Converted full-time contract to 4/5 part-time",
+          "date": "2026-08-01",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for employee on time credit",
+          "date": "2026-07-28",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_pay_be",
+          "text": "Holiday pay calculation after part-time switch",
+          "date": "2026-07-22",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus: part-time schedule change mid-year",
+          "date": "2026-07-12",
+          "vouched_by": [
+            "emp_003"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus FAQ for PC 200 clients (2026 update)",
+          "date": "2026-06-27",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus correction after payroll close",
+          "date": "2026-06-12",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus: seniority condition check",
+          "date": "2026-05-23",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for student converted to employee",
+          "date": "2026-05-03",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_002",
+      "name": "Tom Janssens",
+      "role": "Senior payroll expert",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "salary_indexation_pc200",
+          "text": "January indexation PC 200 applied for client portfolio",
+          "date": "2024-12-29",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "salary_indexation_pc200",
+          "text": "Indexation correction after late wage scale update",
+          "date": "2024-10-30",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for long-term sickness",
+          "date": "2024-06-02",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus reference period question",
+          "date": "2024-04-13",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus review of procedure",
+          "date": "2024-03-12",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus training for new consultants",
+          "date": "2024-01-14",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for part-time employee",
+          "date": "2023-09-26",
+          "vouched_by": [
+            "emp_011"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus pro rata for mid-year leaver",
+          "date": "2023-06-18",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "year_end_bonus_pc200",
+          "text": "Wrote the original year-end bonus procedure for PC 200",
+          "date": "2023-01-29",
+          "vouched_by": [
+            "emp_005"
+          ],
+          "author": true
+        }
+      ]
+    },
+    {
+      "id": "emp_019",
+      "name": "Lotte Maes",
+      "role": "Payroll consultant",
+      "country": "BE",
+      "opt_in": false,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for part-time employee",
+          "date": "2026-09-25",
+          "vouched_by": [
+            "emp_003",
+            "emp_007",
+            "emp_010"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Part-time worker minimum hours check",
+          "date": "2026-09-21",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for mid-year leaver",
+          "date": "2026-09-18",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus: seniority condition check",
+          "date": "2026-09-10",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_008",
+      "name": "Nina Peeters",
+      "role": "Junior payroll consultant",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for mid-year leaver",
+          "date": "2026-09-04",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "student_workers",
+          "text": "Student worker 475 hours counter",
+          "date": "2026-08-28",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus reference period question",
+          "date": "2026-07-17",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "student_workers",
+          "text": "Student contract during summer holidays",
+          "date": "2026-07-02",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "year_end_bonus_pc200",
+          "text": "Year-end bonus for student converted to employee",
+          "date": "2026-06-02",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_031",
+      "name": "Anouk van Dijk",
+      "role": "HR advisor Netherlands",
+      "country": "NL",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period for Dutch employee with 12-year tenure",
+          "date": "2026-09-24",
+          "vouched_by": [
+            "emp_033",
+            "emp_021"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "notice_period_nl",
+          "text": "Client asked about opzegtermijn in collective agreement (NL)",
+          "date": "2026-09-11",
+          "vouched_by": [
+            "emp_034"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Checked notice period during probation, Netherlands",
+          "date": "2026-08-27",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period for Dutch fixed-term contract",
+          "date": "2026-08-13",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "notice_period_nl",
+          "text": "Notice period guide for NL clients (2026)",
+          "date": "2026-07-31",
+          "vouched_by": [
+            "emp_033"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Termination by mutual consent: notice period question (NL)",
+          "date": "2026-07-07",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period for Dutch employee on sick leave",
+          "date": "2026-06-18",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Opzegtermijn employer vs. employee (NL)",
+          "date": "2026-05-13",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period after company transfer (NL)",
+          "date": "2026-04-13",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_033",
+      "name": "Daan Bakker",
+      "role": "Payroll consultant",
+      "country": "NL",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period for Dutch fixed-term contract",
+          "date": "2026-08-21",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "pension_plans",
+          "text": "Pension plan rules for part-timers",
+          "date": "2026-08-06",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period during probation, Netherlands",
+          "date": "2026-04-23",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period question from NL client",
+          "date": "2026-03-04",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_027",
+      "name": "Marc Lemmens",
+      "role": "Tax specialist",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "expat_taxation",
+          "text": "Inbound taxpayer regime application",
+          "date": "2026-08-17",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "expat_taxation",
+          "text": "Special tax regime eligibility check",
+          "date": "2026-06-21",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "cross_border_lux",
+          "text": "Frontalier social security question (LU/BE)",
+          "date": "2022-01-14",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "cross_border_lux",
+          "text": "Cross-border worker Luxembourg: 24-day tax threshold",
+          "date": "2021-09-06",
+          "vouched_by": [],
+          "author": true
+        }
+      ]
+    },
+    {
+      "id": "emp_022",
+      "name": "Pieter Claes",
+      "role": "Legal expert",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [
+        "sick_leave_be"
+      ],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "sick_leave_be",
+          "text": "Guaranteed salary after relapse within 14 days",
+          "date": "2026-09-20",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_be",
+          "text": "Notice period calculation under the unified status (BE)",
+          "date": "2026-09-15",
+          "vouched_by": [
+            "emp_010"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "sick_leave_be",
+          "text": "Sick leave during annual holiday",
+          "date": "2026-09-05",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_be",
+          "text": "Notice period for employee with seniority before 2014",
+          "date": "2026-08-03",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "gdpr_employee_data",
+          "text": "Retention period for payroll records",
+          "date": "2026-07-15",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_050",
+      "name": "Joris Vandenberghe",
+      "role": "Mobility & reward specialist",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "ev_home_charging",
+          "text": "Home charging reimbursement at quarterly kWh price",
+          "date": "2026-09-26",
+          "vouched_by": [
+            "emp_021",
+            "emp_005"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "mobility_budget",
+          "text": "Employee switched company car to mobility budget",
+          "date": "2026-09-22",
+          "vouched_by": [
+            "emp_003",
+            "emp_045"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "bike_allowance",
+          "text": "Bike allowance for speed pedelec",
+          "date": "2026-09-19",
+          "vouched_by": [
+            "emp_007"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "mobility_budget",
+          "text": "Mobility budget: pillar 2 housing costs",
+          "date": "2026-09-07",
+          "vouched_by": [
+            "emp_010"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "ev_home_charging",
+          "text": "Charging station at home installed via car policy",
+          "date": "2026-09-01",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "bike_allowance",
+          "text": "Bike lease combined with bike allowance",
+          "date": "2026-08-25",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "mobility_budget",
+          "text": "Mobility budget FAQ for clients (2026)",
+          "date": "2026-08-14",
+          "vouched_by": [
+            "emp_014"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Benefit in kind company car recalculated with new CO2 value",
+          "date": "2026-08-01",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "bike_allowance",
+          "text": "Bike allowance kilometre registration",
+          "date": "2026-07-22",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "mobility_budget",
+          "text": "Mobility budget cash-out at year end",
+          "date": "2026-07-02",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "mobility_budget",
+          "text": "Mobility budget eligibility check",
+          "date": "2026-06-02",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_051",
+      "name": "Femke de Jong",
+      "role": "Payroll consultant Netherlands",
+      "country": "NL",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "thirty_percent_ruling",
+          "text": "30% ruling application for new hire from Spain",
+          "date": "2026-09-21",
+          "vouched_by": [
+            "emp_031",
+            "emp_033"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Expiring statutory leave days (NL)",
+          "date": "2026-09-14",
+          "vouched_by": [
+            "emp_031"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "thirty_percent_ruling",
+          "text": "30% ruling phase-down impact on net salary",
+          "date": "2026-09-03",
+          "vouched_by": [
+            "emp_034"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Vakantiebijslag for part-timer",
+          "date": "2026-08-20",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "thirty_percent_ruling",
+          "text": "30% ruling salary threshold check",
+          "date": "2026-08-06",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Carry-over of extra-statutory leave (NL)",
+          "date": "2026-07-15",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "thirty_percent_ruling",
+          "text": "30% ruling for returning Dutch national",
+          "date": "2026-07-04",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Notice period question from NL client",
+          "date": "2026-05-23",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_052",
+      "name": "Oliver Hughes",
+      "role": "UK payroll lead",
+      "country": "GB",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "uk_payroll",
+          "text": "UK starter checklist without P45",
+          "date": "2026-09-27",
+          "vouched_by": [
+            "emp_042"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "uk_payroll",
+          "text": "PAYE RTI submission late",
+          "date": "2026-09-11",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "uk_payroll",
+          "text": "National Insurance category question",
+          "date": "2026-08-17",
+          "vouched_by": [
+            "emp_040",
+            "emp_003"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "uk_payroll",
+          "text": "UK payroll go-live for Belgian client",
+          "date": "2026-06-21",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_053",
+      "name": "Laura Gómez",
+      "role": "Global mobility advisor",
+      "country": "ES",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "remote_work_abroad",
+          "text": "A1 certificate for employee working from Spain",
+          "date": "2026-09-23",
+          "vouched_by": [
+            "emp_050",
+            "emp_021",
+            "emp_010"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "remote_work_abroad",
+          "text": "Workation request: 3 weeks in Portugal",
+          "date": "2026-09-12",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "remote_work_abroad",
+          "text": "Remote work abroad policy review (2026)",
+          "date": "2026-08-21",
+          "vouched_by": [
+            "emp_045"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "expat_taxation",
+          "text": "Expat cost allowance reimbursement",
+          "date": "2026-08-03",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "remote_work_abroad",
+          "text": "Permanent establishment risk check for remote worker",
+          "date": "2026-07-26",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_054",
+      "name": "Kristof Hendrickx",
+      "role": "HR policy advisor",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Protected employee status during social elections",
+          "date": "2026-09-05",
+          "vouched_by": [
+            "emp_022"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Social elections timeline 2028 planning",
+          "date": "2026-08-01",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Works council candidate list question",
+          "date": "2026-05-13",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "remote_work_abroad",
+          "text": "Workation request review",
+          "date": "2024-05-13",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "remote_work_abroad",
+          "text": "A1 certificate question",
+          "date": "2024-01-24",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "remote_work_abroad",
+          "text": "Wrote the first remote work abroad policy",
+          "date": "2023-09-26",
+          "vouched_by": [
+            "emp_005"
+          ],
+          "author": true
+        }
+      ]
+    },
+    {
+      "id": "emp_055",
+      "name": "Bram Desmet",
+      "role": "Senior payroll consultant",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Temporary unemployment notification for economic reasons",
+          "date": "2026-09-17",
+          "vouched_by": [
+            "emp_014"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "Stock option grant accepted within 60 days",
+          "date": "2026-09-08",
+          "vouched_by": [
+            "emp_027"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Employer supplement during temporary unemployment",
+          "date": "2026-08-26",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "RSU vesting taxed as salary",
+          "date": "2026-08-13",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "Warrants bonus plan review",
+          "date": "2026-05-03",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Force majeure unemployment after flooding",
+          "date": "2026-03-14",
+          "vouched_by": [
+            "emp_003"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_003",
+      "name": "Jonas Wouters",
+      "role": "Client service manager",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "salary_indexation_pc200",
+          "text": "Question on indexation of fixed allowances",
+          "date": "2026-08-09",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Protected employee status during social elections",
+          "date": "2026-07-18",
+          "vouched_by": [
+            "emp_007"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "company_car_bik",
+          "text": "Own contribution company car deducted from BIK",
+          "date": "2026-06-18",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Protected employee status during social elections",
+          "date": "2026-06-08",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Own contribution company car deducted from BIK",
+          "date": "2026-05-08",
+          "vouched_by": [
+            "emp_005",
+            "emp_065"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "salary_indexation_pc200",
+          "text": "January indexation PC 200 applied for client portfolio",
+          "date": "2026-04-08",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Works council candidate list question",
+          "date": "2026-02-23",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Own contribution company car deducted from BIK",
+          "date": "2026-02-23",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_005",
+      "name": "Eva Jacobs",
+      "role": "Tax specialist",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Force majeure unemployment after flooding",
+          "date": "2026-08-23",
+          "vouched_by": [
+            "emp_054"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Employer supplement during temporary unemployment",
+          "date": "2026-08-18",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Converted full-time contract to 4/5 part-time",
+          "date": "2026-05-25",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Converted full-time contract to 4/5 part-time",
+          "date": "2026-05-14",
+          "vouched_by": [
+            "emp_055"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Maternity leave extension after hospitalisation",
+          "date": "2026-03-25",
+          "vouched_by": [
+            "emp_011",
+            "emp_066"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Temporary unemployment notification for economic reasons",
+          "date": "2025-12-19",
+          "vouched_by": [
+            "emp_022",
+            "emp_061"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_007",
+      "name": "Kobe Mertens",
+      "role": "Legal expert",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Parental leave 1/10 reduction set up",
+          "date": "2026-05-15",
+          "vouched_by": [
+            "emp_062",
+            "emp_066"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "student_workers",
+          "text": "Student worker 475 hours counter",
+          "date": "2026-04-19",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "student_workers",
+          "text": "Student worker social contribution rate",
+          "date": "2026-04-14",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Works council candidate list question",
+          "date": "2026-03-07",
+          "vouched_by": [
+            "emp_064"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "student_workers",
+          "text": "Student worker 475 hours counter",
+          "date": "2025-12-11",
+          "vouched_by": [
+            "emp_031"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_010",
+      "name": "Hanne Willems",
+      "role": "Senior payroll consultant",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "document",
+          "topic": "cafeteria_plan",
+          "text": "Cafeteria plan: converting holiday pay",
+          "date": "2026-07-31",
+          "vouched_by": [
+            "emp_014"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "meal_vouchers",
+          "text": "Meal voucher count wrong after sick days",
+          "date": "2026-07-11",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "pension_plans",
+          "text": "Pension plan rules for part-timers",
+          "date": "2026-06-28",
+          "vouched_by": [
+            "emp_014",
+            "emp_007"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "cafeteria_plan",
+          "text": "Cafeteria plan budget for bike lease",
+          "date": "2026-04-30",
+          "vouched_by": [
+            "emp_042"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "cafeteria_plan",
+          "text": "Flexible reward plan setup",
+          "date": "2025-11-26",
+          "vouched_by": [
+            "emp_031",
+            "emp_061"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_011",
+      "name": "Wout Goossens",
+      "role": "HR advisor",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "chat",
+          "topic": "social_elections",
+          "text": "Works council candidate list question",
+          "date": "2026-04-15",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Protected employee status during social elections",
+          "date": "2026-03-26",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Protected employee status during social elections",
+          "date": "2026-03-20",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "cafeteria_plan",
+          "text": "Cafeteria plan budget for bike lease",
+          "date": "2026-01-27",
+          "vouched_by": [
+            "emp_031",
+            "emp_050"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_pay_be",
+          "text": "Double holiday pay for leaver",
+          "date": "2025-12-11",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_021",
+      "name": "Elise Dubois",
+      "role": "Legal expert",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Force majeure unemployment after flooding",
+          "date": "2026-08-28",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Maternity leave extension after hospitalisation",
+          "date": "2026-06-17",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Force majeure unemployment after flooding",
+          "date": "2026-06-07",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Temporary unemployment notification for economic reasons",
+          "date": "2026-04-11",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "cafeteria_plan",
+          "text": "Cafeteria plan budget for bike lease",
+          "date": "2026-04-07",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Maternity leave extension after hospitalisation",
+          "date": "2026-02-08",
+          "vouched_by": [
+            "emp_060",
+            "emp_065"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_034",
+      "name": "Sanne de Boer",
+      "role": "Senior payroll consultant",
+      "country": "NL",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Maternity leave extension after hospitalisation",
+          "date": "2026-08-08",
+          "vouched_by": [
+            "emp_066",
+            "emp_008"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Parental leave 1/10 reduction set up",
+          "date": "2026-06-21",
+          "vouched_by": [
+            "emp_042",
+            "emp_027"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "warrants_stock_options",
+          "text": "Stock option grant accepted within 60 days",
+          "date": "2026-05-08",
+          "vouched_by": [
+            "emp_050",
+            "emp_064"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Vakantiebijslag for part-timer",
+          "date": "2026-03-03",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Expiring statutory leave days (NL)",
+          "date": "2026-02-19",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "warrants_stock_options",
+          "text": "Stock option grant accepted within 60 days",
+          "date": "2026-02-13",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "Stock option grant accepted within 60 days",
+          "date": "2025-12-25",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "notice_period_nl",
+          "text": "Checked notice period during probation, Netherlands",
+          "date": "2025-12-09",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_040",
+      "name": "Lukas Schneider",
+      "role": "Client service manager",
+      "country": "DE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "document",
+          "topic": "payroll_close",
+          "text": "Monthly payroll cut-off moved for holiday",
+          "date": "2026-07-28",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "germany_payroll",
+          "text": "German social security registration for new entity",
+          "date": "2026-07-05",
+          "vouched_by": [
+            "emp_055",
+            "emp_062"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "germany_payroll",
+          "text": "Lohnsteuer class change mid-year",
+          "date": "2026-05-15",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "sick_leave_be",
+          "text": "Guaranteed salary after relapse within 14 days",
+          "date": "2026-04-29",
+          "vouched_by": [
+            "emp_068",
+            "emp_051"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "telework_allowance",
+          "text": "Home office allowance for structural teleworker",
+          "date": "2026-01-10",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "sick_leave_be",
+          "text": "Sick leave during annual holiday",
+          "date": "2025-12-24",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "payroll_close",
+          "text": "Monthly payroll cut-off moved for holiday",
+          "date": "2025-12-03",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "telework_allowance",
+          "text": "Home office allowance for structural teleworker",
+          "date": "2025-12-02",
+          "vouched_by": [
+            "emp_008"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "telework_allowance",
+          "text": "Home office allowance for structural teleworker",
+          "date": "2025-11-27",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "payroll_close",
+          "text": "Payroll run failed validation, fixed",
+          "date": "2025-11-27",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_042",
+      "name": "Camille Laurent",
+      "role": "Senior payroll consultant",
+      "country": "FR",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Birth leave days for co-parent",
+          "date": "2026-08-23",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "france_payroll",
+          "text": "Monthly DSN declaration checklist",
+          "date": "2026-08-21",
+          "vouched_by": [
+            "emp_066"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "france_payroll",
+          "text": "French payslip layout question",
+          "date": "2026-06-10",
+          "vouched_by": [
+            "emp_027",
+            "emp_031"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "RSU vesting taxed as salary",
+          "date": "2026-05-22",
+          "vouched_by": [
+            "emp_069"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "gdpr_employee_data",
+          "text": "Retention period for payroll records",
+          "date": "2026-05-15",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "Warrants bonus plan review",
+          "date": "2026-04-05",
+          "vouched_by": [
+            "emp_055"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "france_payroll",
+          "text": "Monthly DSN declaration checklist",
+          "date": "2026-03-09",
+          "vouched_by": [
+            "emp_005"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "parental_leave",
+          "text": "Parental leave 1/10 reduction set up",
+          "date": "2026-02-15",
+          "vouched_by": [
+            "emp_011"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "gdpr_employee_data",
+          "text": "GDPR review of HR export",
+          "date": "2025-12-18",
+          "vouched_by": [
+            "emp_014"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "gdpr_employee_data",
+          "text": "GDPR review of HR export",
+          "date": "2025-12-18",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_045",
+      "name": "Ines Hermans",
+      "role": "Legal expert",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "payroll_close",
+          "text": "Payslip correction after payroll close",
+          "date": "2026-08-20",
+          "vouched_by": [
+            "emp_064",
+            "emp_014"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Birth leave days for co-parent",
+          "date": "2026-07-24",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Social elections timeline 2028 planning",
+          "date": "2026-07-23",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "parental_leave",
+          "text": "Parental leave 1/10 reduction set up",
+          "date": "2026-03-28",
+          "vouched_by": [
+            "emp_060"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "parental_leave",
+          "text": "Birth leave days for co-parent",
+          "date": "2025-12-03",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_060",
+      "name": "Arne Coppens",
+      "role": "Social security specialist",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "RSU vesting taxed as salary",
+          "date": "2026-07-08",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "warrants_stock_options",
+          "text": "Stock option grant accepted within 60 days",
+          "date": "2026-06-29",
+          "vouched_by": [
+            "emp_051",
+            "emp_005"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Company car policy question for hybrid vehicle",
+          "date": "2026-06-06",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Benefit in kind company car recalculated with new CO2 value",
+          "date": "2026-06-05",
+          "vouched_by": [
+            "emp_042",
+            "emp_021"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "flexi_jobs",
+          "text": "Flexi-job eligibility check for retiree",
+          "date": "2026-05-17",
+          "vouched_by": [
+            "emp_040",
+            "emp_002"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "flexi_jobs",
+          "text": "Flexi-job wage minimum update",
+          "date": "2026-04-12",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "warrants_stock_options",
+          "text": "Stock option grant accepted within 60 days",
+          "date": "2026-04-10",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "flexi_jobs",
+          "text": "Flexi-job wage minimum update",
+          "date": "2026-04-01",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_061",
+      "name": "Charlotte Lambert",
+      "role": "HR advisor",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Force majeure unemployment after flooding",
+          "date": "2026-07-26",
+          "vouched_by": [
+            "emp_034"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Employer supplement during temporary unemployment",
+          "date": "2026-03-05",
+          "vouched_by": [
+            "emp_063"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "temporary_unemployment",
+          "text": "Temporary unemployment notification for economic reasons",
+          "date": "2026-02-24",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Company car policy question for hybrid vehicle",
+          "date": "2026-02-19",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Own contribution company car deducted from BIK",
+          "date": "2026-02-16",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Part-time worker minimum hours check",
+          "date": "2025-12-06",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "part_time_work",
+          "text": "Part-time worker minimum hours check",
+          "date": "2025-11-21",
+          "vouched_by": [
+            "emp_034"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_062",
+      "name": "Thijs Visser",
+      "role": "Tax specialist",
+      "country": "NL",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Expiring statutory leave days (NL)",
+          "date": "2026-09-15",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "time_credit",
+          "text": "Time credit with motive: care for child",
+          "date": "2026-07-14",
+          "vouched_by": [
+            "emp_068",
+            "emp_061"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "time_credit",
+          "text": "Career break end-of-career (landingsbaan)",
+          "date": "2026-06-07",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Client asked about opzegtermijn in collective agreement (NL)",
+          "date": "2026-05-04",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Expiring statutory leave days (NL)",
+          "date": "2026-04-22",
+          "vouched_by": [
+            "emp_033"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "notice_period_nl",
+          "text": "Client asked about opzegtermijn in collective agreement (NL)",
+          "date": "2026-02-13",
+          "vouched_by": [
+            "emp_034",
+            "emp_066"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "time_credit",
+          "text": "Time credit with motive: care for child",
+          "date": "2026-02-06",
+          "vouched_by": [
+            "emp_008",
+            "emp_005"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "holiday_entitlement_nl",
+          "text": "Vakantiebijslag for part-timer",
+          "date": "2026-01-07",
+          "vouched_by": [
+            "emp_052",
+            "emp_033"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "temporary_unemployment",
+          "text": "Employer supplement during temporary unemployment",
+          "date": "2025-12-07",
+          "vouched_by": [
+            "emp_031",
+            "emp_066"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_063",
+      "name": "Yasmine El Amrani",
+      "role": "Legal expert",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "Warrants bonus plan review",
+          "date": "2026-05-28",
+          "vouched_by": [
+            "emp_068"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "warrants_stock_options",
+          "text": "RSU vesting taxed as salary",
+          "date": "2026-05-18",
+          "vouched_by": [
+            "emp_052",
+            "emp_067"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "cafeteria_plan",
+          "text": "Cafeteria plan: converting holiday pay",
+          "date": "2026-05-04",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "dimona_onboarding",
+          "text": "Dimona declaration for student",
+          "date": "2026-03-15",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "warrants_stock_options",
+          "text": "Warrants bonus plan review",
+          "date": "2026-01-12",
+          "vouched_by": [
+            "emp_065"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "cafeteria_plan",
+          "text": "Flexible reward plan setup",
+          "date": "2025-12-25",
+          "vouched_by": [
+            "emp_040"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_064",
+      "name": "Stijn Verbeke",
+      "role": "Tax specialist",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "document",
+          "topic": "overtime",
+          "text": "Overtime premium on Sunday work",
+          "date": "2026-07-24",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "payroll_close",
+          "text": "Monthly payroll cut-off moved for holiday",
+          "date": "2026-06-07",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "notice_period_be",
+          "text": "Counter-notice question from Belgian employee",
+          "date": "2026-04-28",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "payroll_close",
+          "text": "Monthly payroll cut-off moved for holiday",
+          "date": "2026-04-08",
+          "vouched_by": [
+            "emp_068",
+            "emp_002"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "notice_period_be",
+          "text": "Notice period for employee with seniority before 2014",
+          "date": "2026-03-17",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "notice_period_be",
+          "text": "Notice period calculation under the unified status (BE)",
+          "date": "2026-02-24",
+          "vouched_by": [
+            "emp_062",
+            "emp_008"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "overtime",
+          "text": "Voluntary overtime hours limit check",
+          "date": "2026-02-20",
+          "vouched_by": []
+        },
+        {
+          "type": "document",
+          "topic": "overtime",
+          "text": "Overtime premium on Sunday work",
+          "date": "2025-11-28",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_065",
+      "name": "Marie Dupont",
+      "role": "Senior payroll consultant",
+      "country": "FR",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "chat",
+          "topic": "france_payroll",
+          "text": "Monthly DSN declaration checklist",
+          "date": "2026-08-17",
+          "vouched_by": [
+            "emp_010",
+            "emp_062"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "part_time_work",
+          "text": "Part-time worker minimum hours check",
+          "date": "2026-07-31",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Converted full-time contract to 4/5 part-time",
+          "date": "2026-07-11",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "telework_allowance",
+          "text": "Telework agreement template updated",
+          "date": "2026-06-05",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "part_time_work",
+          "text": "Part-time schedule change mid-month",
+          "date": "2026-05-24",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "france_payroll",
+          "text": "Monthly DSN declaration checklist",
+          "date": "2026-04-13",
+          "vouched_by": [
+            "emp_055"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "parental_leave",
+          "text": "Parental leave 1/10 reduction set up",
+          "date": "2025-11-21",
+          "vouched_by": [
+            "emp_007",
+            "emp_045"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_066",
+      "name": "Hannah Weber",
+      "role": "Social security specialist",
+      "country": "DE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "germany_payroll",
+          "text": "German payroll go-live checklist",
+          "date": "2026-09-06",
+          "vouched_by": [
+            "emp_022"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_pay_be",
+          "text": "Double holiday pay for leaver",
+          "date": "2026-08-14",
+          "vouched_by": [
+            "emp_034"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "telework_allowance",
+          "text": "Telework agreement template updated",
+          "date": "2026-06-29",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "germany_payroll",
+          "text": "German payroll go-live checklist",
+          "date": "2026-05-26",
+          "vouched_by": [
+            "emp_054",
+            "emp_031"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Company car policy question for hybrid vehicle",
+          "date": "2026-04-14",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "telework_allowance",
+          "text": "Telework allowance combined with internet allowance",
+          "date": "2026-04-06",
+          "vouched_by": [
+            "emp_045",
+            "emp_031"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "company_car_bik",
+          "text": "Company car policy question for hybrid vehicle",
+          "date": "2026-04-06",
+          "vouched_by": [
+            "emp_055",
+            "emp_042"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "telework_allowance",
+          "text": "Telework agreement template updated",
+          "date": "2026-03-26",
+          "vouched_by": [
+            "emp_068",
+            "emp_027"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "holiday_pay_be",
+          "text": "Holiday pay for white-collar worker changing employer",
+          "date": "2026-02-16",
+          "vouched_by": [
+            "emp_067"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "germany_payroll",
+          "text": "Lohnsteuer class change mid-year",
+          "date": "2025-12-07",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "holiday_pay_be",
+          "text": "Holiday pay calculation after part-time switch",
+          "date": "2025-11-19",
+          "vouched_by": [
+            "emp_005",
+            "emp_065"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_067",
+      "name": "Ruben Smit",
+      "role": "Senior payroll consultant",
+      "country": "NL",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "salary_indexation_pc200",
+          "text": "Indexation correction after late wage scale update",
+          "date": "2026-06-21",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "holiday_entitlement_nl",
+          "text": "Vakantiebijslag for part-timer",
+          "date": "2026-06-06",
+          "vouched_by": [
+            "emp_002",
+            "emp_033"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "dimona_onboarding",
+          "text": "New hire onboarding checklist update",
+          "date": "2026-04-24",
+          "vouched_by": [
+            "emp_065"
+          ]
+        },
+        {
+          "type": "chat",
+          "topic": "notice_period_nl",
+          "text": "Notice period for Dutch employee with 12-year tenure",
+          "date": "2026-03-03",
+          "vouched_by": []
+        },
+        {
+          "type": "chat",
+          "topic": "holiday_entitlement_nl",
+          "text": "Carry-over of extra-statutory leave (NL)",
+          "date": "2026-01-27",
+          "vouched_by": []
+        },
+        {
+          "type": "ticket",
+          "topic": "dimona_onboarding",
+          "text": "Dimona correction after start date change",
+          "date": "2025-12-20",
+          "vouched_by": [
+            "emp_063"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "holiday_entitlement_nl",
+          "text": "Vakantiebijslag for part-timer",
+          "date": "2025-12-04",
+          "vouched_by": []
+        }
+      ]
+    },
+    {
+      "id": "emp_068",
+      "name": "Lien Vermeersch",
+      "role": "HR advisor",
+      "country": "BE",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "document",
+          "topic": "telework_allowance",
+          "text": "Telework agreement template updated",
+          "date": "2026-09-20",
+          "vouched_by": [
+            "emp_053"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "dimona_onboarding",
+          "text": "Dimona declaration for student",
+          "date": "2026-06-20",
+          "vouched_by": [
+            "emp_010",
+            "emp_011"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "gdpr_employee_data",
+          "text": "Retention period for payroll records",
+          "date": "2025-12-18",
+          "vouched_by": [
+            "emp_019"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "emp_069",
+      "name": "Emma Clarke",
+      "role": "Payroll analyst",
+      "country": "GB",
+      "opt_in": true,
+      "hidden_topics": [],
+      "evidence": [
+        {
+          "type": "ticket",
+          "topic": "pension_plans",
+          "text": "Pension plan rules for part-timers",
+          "date": "2026-08-31",
+          "vouched_by": [
+            "emp_067",
+            "emp_031"
+          ]
+        },
+        {
+          "type": "document",
+          "topic": "company_car_bik",
+          "text": "Benefit in kind company car recalculated with new CO2 value",
+          "date": "2026-07-29",
+          "vouched_by": [
+            "emp_033"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "uk_payroll",
+          "text": "PAYE RTI submission late",
+          "date": "2026-02-14",
+          "vouched_by": [
+            "emp_066"
+          ]
+        },
+        {
+          "type": "ticket",
+          "topic": "social_elections",
+          "text": "Social elections timeline 2028 planning",
+          "date": "2026-01-26",
+          "vouched_by": []
+        }
+      ]
+    }
+  ]
+}

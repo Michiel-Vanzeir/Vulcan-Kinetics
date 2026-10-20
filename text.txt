@@ -1,0 +1,3 @@
+Zien jullie dit?
+print("hello world!")
+npm install -g @anthropic-ai/claude-code

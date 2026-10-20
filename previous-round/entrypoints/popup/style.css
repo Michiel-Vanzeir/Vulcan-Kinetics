@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap');
+
+body { margin: 0; }
+.popup { width: 300px; font: 14px/1.4 'Bricolage Grotesque', system-ui, sans-serif; color: #1B2A4E; background: #fff; }
+header { display: flex; gap: 10px; align-items: center; padding: 14px 16px; background: #1B2A4E; color: #fff; }
+.logo { width: 38px; height: 38px; display: block; border-radius: 9px; }
+.wordmark { font-weight: 800; font-size: 20px; letter-spacing: -.02em; }
+.tagline { font-size: 11.5px; color: #A0ACC8; }
+main { padding: 6px 16px 14px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eef0f5; }
+.row small { display: block; color: #6b7797; font-size: 12px; }
+.row input { width: 18px; height: 18px; accent-color: #1B2A4E; }
+kbd { font: inherit; font-size: 12px; background: #eef1f7; border-radius: 5px; padding: 2px 7px; white-space: nowrap; }
+.status { display: flex; align-items: center; gap: 8px; padding-top: 12px; font-size: 12.5px; color: #6b7797; }
+.led { width: 8px; height: 8px; border-radius: 50%; background: #c3cadb; }
+.led.on { background: #1fbf64; }
+.led.off { background: #e5484d; }
