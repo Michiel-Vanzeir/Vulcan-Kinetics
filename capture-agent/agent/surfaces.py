@@ -1,6 +1,7 @@
 """OS-independent rules for which app, tab and field may be captured."""
 
 import re
+import unicodedata
 
 from agent.config import (
     BROWSER_PROCESSES,
@@ -30,4 +31,6 @@ def is_sensitive_field(name: str, automation_id: str) -> bool:
     # Split camelCase ids like "cardNumber" so whole-word matching works.
     automation_id = re.sub(r"([a-z])([A-Z])", r"\1 \2", automation_id)
     label = f"{name} {automation_id}".replace("_", " ").replace("-", " ").lower()
+    # Strip accents so "Numéro de carte" and "Bestätigungscode" match the plain list entries.
+    label = "".join(c for c in unicodedata.normalize("NFKD", label) if not unicodedata.combining(c))
     return _SENSITIVE_FIELD.search(label) is not None

@@ -18,6 +18,11 @@ from agent.surfaces import is_sensitive_field, surface_name
         ("msedge.exe", "Gmail - Personal - Microsoft Edge", None),
         ("msedge.exe", "Gmail and 2 more pages - InPrivate - Microsoft Edge", None),
         ("spotify.exe", "Spotify Premium", None),
+        ("chrome.exe", "Ticket #123 - Freshdesk - Google Chrome", "freshdesk_web"),
+        ("brave.exe", "Gmail - Brave (Private)", None),
+        ("firefox.exe", "Gmail — Mozilla Firefox Privénavigatie", None),
+        ("chrome.exe", "Gmail - Google Chrome (Navigation privée)", None),
+        ("msedge.exe", "Gmail - Persoonlijk - Microsoft Edge", None),
     ],
 )
 def test_surface_name(process, title, expected):
@@ -36,6 +41,15 @@ def test_surface_name(process, title, expected):
         ("Type a message", "", False),
         ("Message body", "", False),
         ("Opinion", "spinner", False),
+        ("Mot de passe", "", True),
+        ("Numéro de carte", "", True),
+        ("Bestätigungscode", "", True),
+        ("Rekeningnummer", "", True),
+        ("", "otpInput", True),
+        ("Verification code", "", True),
+        ("Subject", "subjectLine", False),
+        ("Nachricht", "", False),
+        ("Objet", "", False),
     ],
 )
 def test_is_sensitive_field(name, automation_id, expected):
