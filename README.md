@@ -1,5 +1,62 @@
 # whoknows
 
+Expertise finds you, not the other way around. A local capture agent notices when you
+hesitate while writing and opens a panel showing which colleagues know the topic.
+Typed text never leaves your machine: only counts and topic tokens do.
+
+## Run the full demo (Windows)
+
+Needs Python 3.12 or newer (verified on 3.14), Node.js 22 or newer, and Edge or Chrome.
+Neo4j and Docker are **not** needed for this flow. Use three terminals from the repo root.
+
+**1. Backend** (Flask on http://127.0.0.1:5000):
+
+```sh
+cd Neo4J-backend
+py -3 -m venv .venv
+.venv/Scripts/python -m pip install flask neo4j pydantic python-dotenv pytest
+.venv/Scripts/python seed_signals.py --reset
+.venv/Scripts/python run.py
+```
+
+`seed_signals.py` gives the expertise filter a synthetic history (Sarah, Emma and Lucas as
+current experts, Tom as stale), so the agent's "who knows" answer matches the panel.
+
+**2. Panel and preview server** (http://127.0.0.1:4173):
+
+```sh
+node preview-server.mjs
+```
+
+**3. Capture agent:**
+
+```sh
+cd capture-agent
+py -3 -m venv .venv
+.venv/Scripts/python -m pip install -r requirements-dev.txt
+.venv/Scripts/python -m agent --backend-url http://127.0.0.1:5000
+```
+
+The agent prints every payload it sends (`-> {...}`), which is the privacy proof for the pitch.
+
+**Demo script.** Open a Teams chat (desktop) or Gmail in Edge or Chrome, and type slowly, with
+a pause or two:
+
+> Hi Tom, the year-end bonus for a part-time employee in PC 200 is I think pro rata,
+> not sure though. Maybe check with [someone in payroll]??
+
+Once the hedges, pauses and placeholder add up to doubt, the agent prints
+`<- doubt: struggling with ['PC_200', 'year_end_bonus']` and the panel opens top right with
+Sarah De Vos (current) above Tom Janssens (last active 2024). Ctrl+Alt+W opens it on demand
+and prints `<- who knows ...`. "Notice period in Spain" shows Emma for notice periods; Spain
+itself has no expert, which is the knowledge-gap case.
+
+**Check that everything is up:** http://127.0.0.1:4173/popup.html should say
+"Connected to backend".
+
+**Tests:** `.venv/Scripts/python -m pytest` in `Neo4J-backend/` and in `capture-agent/`, and
+`node --test preview-api.test.mjs preview-ui.test.mjs` in the repo root.
+
 ## Local popup preview
 
 Requires Node.js 22 or newer. No package installation or environment variables are needed.
@@ -68,9 +125,10 @@ expertise backend. It has no production authentication or external messaging int
 Recipient ids, payload lengths, preferences, ping consent and feedback are checked server-side.
 Browser writes require a matching local Origin and JSON content type.
 
-The settings popup's live backend indicator checks `http://127.0.0.1:8000/health` through
-the preview server. It shows offline when that backend is not running. Its status selector
-also supports explicit visual simulations.
+The settings popup's live backend indicator checks the Flask backend's `/health` through the
+preview server (`http://127.0.0.1:5000` by default; set `WHOKNOWS_BACKEND_URL` to change it).
+It shows offline when that backend is not running. Its status selector also supports
+explicit visual simulations.
 
 Run the UI API and interaction checks with:
 
@@ -79,7 +137,7 @@ node --test preview-api.test.mjs preview-ui.test.mjs
 ```
 
 The previews use local sans-serif fonts, SD Worx blue (`#006dd8`), white and neutral text.
-Profile images are local assets. No code is imported or run from `previous-round/`.
+Profile images are local assets.
 
 ## Other project components
 

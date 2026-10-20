@@ -105,7 +105,7 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 
 | # | Feature | Status | Owner |
 |---|---|---|---|
-| 1 | Synthetic dataset: 15 to 20 employees with the demo patterns (fresh expert, stale expert, opted-out person, knowledge-gap topic) | planned | |
+| 1 | Synthetic dataset: 15 to 20 employees with the demo patterns (fresh expert, stale expert, opted-out person, knowledge-gap topic) | in progress (Daan) | Daan |
 | 2 | Capture agent: ring buffer + accessibility-API surface ids, password and sensitive fields skipped, numbers/emails stripped | done | Michiel |
 | 3 | Capture agent: signal detector (raw signal counts per trigger, per text field; see "Signal detector output") | done | Michiel |
 | 4 | Capture agent: trigger-based topic extractor against the fixed payroll vocabulary | done | Michiel |
@@ -349,7 +349,6 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 ## Open decisions
 
 - Agent OS: the spec prefers macOS; the agent is currently built for Windows (`capture-agent/surface_windows.py` is the only OS-specific file). Decide which machine runs the demo.
-- Demo data: the expertise filter starts empty, so `/experts` returns nobody until people have sent payloads that score as answering with confidence. The synthetic dataset (feature 1) has to seed it, or `/experts` should also consult Sven's Neo4j graph.
 - Reply detection: `is_reply`, `prior_message_char_count` and `question_marks_in_prior_message` are always false/0, because the agent doesn't read the message being replied to.
 - Scoring formula: the product zeroes a score when any factor is 0 (e.g. no vouches yet). Each factor likely needs a floor (e.g. `1 + vouches`). Also decide where "direction of the conversation" enters the formula; it's listed as a signal but isn't a factor yet.
 
@@ -361,7 +360,7 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 |---|---|
 | Michiel | Capture agent + hesitation detection (features 2 to 7) |
 | Sven | Neo4j backend: expertise graph, knowledge, who-knows (features 9 to 11) |
-| _TBD_ | _TBD_ |
+| Daan | Expertise filter (signal scoring, doubt push), demo data and integration (feature 1) |
 | _TBD_ | _TBD_ |
 
 ## Demo plan (3 min)
@@ -374,7 +373,7 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
 
 ## Submission checklist (before 16:00)
 
-- [ ] **Delete `previous-round/` from the repo** (reference only; it would count in the Aikido scan).
+- [x] **Delete `previous-round/` from the repo** (reference only; it would count in the Aikido scan).
 - [ ] Final Aikido scan; screenshot showing repo name and remaining vulnerabilities.
 - [ ] Repo is public; `README.md` has working setup and run steps; no secrets committed.
 - [ ] Pitch deck (ppt/pdf) with demo screenshots or an embedded recording, tested on another machine.
@@ -433,3 +432,4 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Sven): Improved the Neo4j `/who-knows` ranking: recency decay, a keyword (hybrid lexical) boost, a knowledge-gap cutoff, and ping-count load balancing (each person has a `ping_count` the search raises for whoever it surfaces; someone pinged far above the other candidates for a query is down-weighted a little, so repeated questions rotate across a close field instead of always hitting one person). Added `GET /pings` as a management view of those counts, and `Person.user_id` as the bridge to the capture agent's `emp_*` ids. The graph ranking and the signal filter (`app/signals.py` + `expertise_filter.py`) remain separate scorers; unifying them is future work.
 - 2026-10-20 (Michiel): Ctrl+Alt+W now opens Thomas's people panel as a popup window (Edge/Chrome app mode, top right), pre-filtered on the current field's topic tokens. Added a popup mode (`?popup=1`, `?topics=`) to the panel; the preview page is unchanged.
 - 2026-10-20 (Michiel): The people panel now also opens by itself when the backend says the user is struggling: merged Daan's `doubt_alert` from the expertise filter into `/analyze`'s answer, and the agent opens the popup on it (never over a panel that is already open). This is the push moment; Ctrl+Alt+W stays as the manual route.
+- 2026-10-20 13:55 (Daan): Demo data decided: the expertise filter is seeded with synthetic answering history (`Neo4J-backend/seed_signals.py`) using the panel's people, since live typing can't count as answering until reply detection exists. `/experts` keeps consulting only the filter, not the Neo4j graph. Sarah, Emma and Lucas are current experts; Tom's 2024 history decays out, so stale expertise is never presented as current. Added `GET /health` so the settings popup shows the real backend state.

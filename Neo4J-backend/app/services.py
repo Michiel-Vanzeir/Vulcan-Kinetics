@@ -1,3 +1,4 @@
+"""Use cases over the org graph: validation, transactions, embeddings, ranking."""
 import math
 import uuid
 from datetime import datetime, timezone
