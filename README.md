@@ -2,62 +2,80 @@
 
 ## Local popup preview
 
-Requires Node.js 22 or newer. No dependency installation or environment variables are needed.
+Requires Node.js 22 or newer. No package installation or environment variables are needed.
 
 ```sh
 node --watch preview-server.mjs
 ```
 
-Open http://127.0.0.1:4173. Stop the server with Ctrl+C.
-Watch mode restarts the server when its routes change, so newly added image assets are served.
+Open http://127.0.0.1:4173. Stop the server with Ctrl+C. Watch mode restarts the server
+when its code changes. Refresh the popup after editing HTML, CSS or client JavaScript.
 
-The main preview is the people-search panel from `previous-round/utils/panel.ts`,
-recreated in `people-panel.html`, `people-panel.css` and `people-panel.js`.
-Search by name, role or topic (for example `Sarah`, `bonus`, `notice` or `payroll`).
-The cards show recency, vouches and stale expertise. The information icon next to each name
-switches the card to its evidence view. The small back arrow, labelled **Back to profile**,
-restores the activity statistics.
-The person's identity and Ask action remain available in both views.
-Each profile has a light blue background. **Ask** opens a dedicated chat view;
-The back arrow (labelled **Back to people**) restores the search and list position.
-Drafts and conversations stay
-available during navigation, including when a simulated reply arrives in the background.
-Ask, send, simulated reply,
-feedback, close and reopen interactions work locally. No messages are sent to real people.
-All people are synthetic; replies and vouches are demo-only and reset on reload.
-Profile pictures are generated fictional headshots stored locally in `profile-portraits.png`.
-Your account has a separate fictional headshot stored locally in `account-portrait.png`.
-**Cases handled** represents completed work related to the displayed topic. Its value comes
-from each person's hardcoded `count` in `people-panel.js`; it is synthetic, not calculated
-from tickets, conversations or backend records.
-Open `/people-panel.html` for the panel alone, or use **Reload people panel** after editing.
-The smaller settings popup remains available below it.
+The page embeds the people panel and the smaller settings popup. Open
+`/people-panel.html` or `/popup.html` to test either alone.
+All people and profile photographs are fictional. No real notifications are sent.
 
-The profile icon opens a dedicated **Account** view for Sarah De Vos's synthetic demo profile.
-Its back arrow returns to the previous list or chat. Turn off **Allow pings**, or select
-**Pause pings** for 50 minutes. Preferences and the absolute DND expiry
-are saved in browser local storage. DND expires automatically or can be ended early.
-Profile cards show **Available for pings** or **Unavailable for pings**, without revealing
-whether someone opted out or paused pings. **Ping** is disabled while unavailable.
-Tom demonstrates pings off; Emma demonstrates a 50-minute DND period starting on page load.
-Pings are simulated, limited to one per person per page session, and send no notifications.
-Availability is local preview behaviour; no backend enforcement or account authentication is provided.
-Account also includes **Detect hesitation** under **Writing assistance**. It shares the saved
-`autoDetect` preference with the settings popup and stays synchronized across preview windows.
-This controls the demo setting only; the preview does not perform hesitation detection.
+### People and chat
 
-The page embeds `popup.html`, which uses `popup.css` and `popup.js`. Edit those files and
-click **Reload popup** to see changes. Open `/popup.html` for the popup alone.
-The preview reproduces the previous round's popup appearance using its existing logo asset.
-It does not load or run code from `previous-round/`.
+Search by name, role or topic, such as Sarah, bonus, notice or payroll.
+The information icon switches a profile card to its evidence view; the back arrow restores
+its activity statistics. **Cases handled** is a synthetic fixture count in `preview-api.mjs`.
 
-The checkbox saves to browser local storage, independently of Chrome extension storage.
-It tests the setting UI only; this page does not perform hesitation detection.
-Live status checks `http://127.0.0.1:8000/health` through the preview server.
-Without a running backend it shows offline. The status selector provides explicitly simulated
-connected, offline and checking states for visual testing.
+**Ask** opens a full conversation. **Send message** stores a message on the local UI server,
+and a fictional colleague replies after 1.5 seconds. You can send follow-up messages.
+Opening a chat from a profile card sends a question; opening an incoming question or ping
+from Account sends a reply. Each message records that intent, so earlier conversations with
+the same person do not reverse who is asking for help. Demo replies and feedback follow
+the intent of the individual message.
+Drafts survive navigation within the page. Feedback updates the server's vouch count once
+per colleague. Chat fields and messages have light blue outlines.
 
-The previews use local sans-serif fonts, SD Worx blue (`#006dd8`), white and neutral text,
-with a restrained red (`#f1002f`) accent for stale expertise.
-There is no current extension implementation outside `previous-round/` to synchronize with.
-The standalone popup files can be reused when the new extension is implemented.
+**Ping** creates a server-side ping. It is disabled when the recipient is unavailable or
+already has an unread ping. The server also enforces these rules if the UI is bypassed.
+
+### Account inbox and Settings
+
+The profile icon opens **Your account**, a separate demo identity from Sarah De Vos.
+The inbox starts with one incoming message and one ping. Open a message to read and reply;
+use **Message** on a ping to start a conversation, or **Dismiss** to acknowledge it.
+Sending a valid reply clears that person's incoming ping from the inbox automatically.
+Opening the conversation without replying leaves the ping waiting.
+The account icon indicates unread activity. Open chats mark incoming messages as read.
+
+**Settings** opens a separate view containing **Allow pings**, a 50-minute **Pause pings**,
+and **Detect hesitation**. Timed pauses expire automatically or can be ended early.
+Cards show the same unavailable label for opt-out and pauses. Tom demonstrates opt-out;
+Emma starts with a 50-minute pause. Your account's preferences never change Sarah's availability.
+The compact settings popup shares the detection preference through the UI API.
+Detection is a saved UI preference; this preview does not control the desktop capture agent.
+
+### Local UI API
+
+`preview-api.mjs` supplies `/ui-api/state` and POST endpoints for preferences, messages,
+pings, read status, votes and demo incoming events. The client polls every two seconds,
+so separate preview windows share the same state. Errors are visible with a retry action.
+State survives page reloads but is held in memory and resets on server restart.
+Drafts are browser-page state and reset on reload.
+
+This loopback-only, single-account synthetic API is separate from the team's Flask/Neo4j
+expertise backend. It has no production authentication or external messaging integration.
+Recipient ids, payload lengths, preferences, ping consent and feedback are checked server-side.
+Browser writes require a matching local Origin and JSON content type.
+
+The settings popup's live backend indicator checks `http://127.0.0.1:8000/health` through
+the preview server. It shows offline when that backend is not running. Its status selector
+also supports explicit visual simulations.
+
+Run the UI API and interaction checks with:
+
+```sh
+node --test preview-api.test.mjs preview-ui.test.mjs
+```
+
+The previews use local sans-serif fonts, SD Worx blue (`#006dd8`), white and neutral text.
+Profile images are local assets. No code is imported or run from `previous-round/`.
+
+## Other project components
+
+See [the expertise backend](Neo4J-backend/README.md) and
+[the capture agent](capture-agent/README.md) for their setup and run commands.

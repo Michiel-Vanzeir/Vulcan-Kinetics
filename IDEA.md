@@ -121,6 +121,7 @@ Only real scope. Status: `planned`, `in progress (name)`, `done`.
 | 13 | Consent UI: opt-in per surface, opt-out per topic | planned | |
 | 14 | Local webpage reproducing the reference settings popup and searchable people panel, with synthetic cards, simulated conversations, saved toggle and connection-state testing | done | Thoma |
 | 15 | Local preview account availability: saved ping opt-out, 50-minute DND, profile availability and simulated ping actions | done | Thoma |
+| 16 | Local UI API for synthetic messaging, inbox pings, replies, read status, feedback and separate account Settings; state lasts for the server session | done | Thoma |
 
 ---
 
@@ -395,6 +396,8 @@ Deliberate boundaries. Don't build these, even if they seem like a quick win.
   the people search, draft messages and conversations during the preview session.
   A profile icon opens a separate account view. Ping opt-out and timed pauses share the
   same unavailable status on profile cards.
+  Account contains a recipient inbox; its Settings button opens a separate preferences view.
+  The preview's local UI API stores synthetic messages, pings and feedback for the server session.
 - **Typeface:** Bricolage Grotesque, extra bold for the wordmark.
 - **Writing style:** plain, direct, no overclaiming, no em dashes.
 
@@ -426,3 +429,5 @@ Format: `- YYYY-MM-DD HH:MM (name): what changed and why`. Append only, idea-lev
 - 2026-10-20 (Michiel): Topic extractor built (`capture-agent/topic_extractor/`): keyword, stem and pattern matching against a fixed EN/NL/FR vocabulary of 35 payroll topics plus countries, PC numbers and worker classes. No ML model, so the output is provably a subset of the vocabulary. Not yet wired into the signal detector.
 - 2026-10-20 (Michiel): Capture agent wired end to end: keyboard hook -> signal detector -> topic extractor -> backend wire format -> single sender, runnable with `python -m agent`. Adopted the backend's payload schema (expertise_filter.py, cumulative counts) as the wire format; added `placeholder` and `submit` to its accepted triggers, and long pauses and rewrite loops to the detector. Removed vocabulary patterns that fired on everyday sentences (notice, employee, manager, worker, index, ...). Enter sends in chat apps, Ctrl+Enter anywhere, Ctrl+Alt+W asks now.
 - 2026-10-20 (Michiel): Agent and backend connected over HTTP. Agent: `agent/transport.py` (fire-and-forget POST /analyze with one retry, blocking POST /experts, optional bearer token, settings from env or `.env`). Backend: `/analyze` and `/experts` in `Neo4J-backend/app/signals.py` on the existing Flask app, Pydantic-validated (no free-text strings), feeding Daan's expertise filter. Ctrl+Alt+W now also prints who knows the field's topics.
+
+- 2026-10-20 12:41 (Thoma): Added a loopback UI API and recipient inbox for synthetic pings and messages, moved preferences to Settings, and enabled repeated chat replies without changing the expertise backend.

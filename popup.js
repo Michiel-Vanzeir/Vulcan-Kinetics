@@ -3,30 +3,47 @@ const API_URL = 'http://127.0.0.1:8000';
 const autoDetect = document.querySelector('#auto-detect');
 const storageError = document.querySelector('#storage-error');
 
-try {
-  autoDetect.checked = localStorage.getItem('autoDetect') !== 'false';
-} catch {
-  showStorageError();
+let savingSetting = false;
+
+/** Keep the compact popup and account Settings view on the same server-owned preference. */
+async function syncHesitationPreference() {
+  if (savingSetting) return;
+  try {
+    const response = await fetch('/ui-api/state', { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error('UI server unavailable.');
+    const state = await response.json();
+    if (!savingSetting) autoDetect.checked = state.account.autoDetect;
+    storageError.hidden = true;
+  } catch (error) {
+    storageError.hidden = false;
+    storageError.textContent = `Cannot load the setting: ${error.message}`;
+  }
 }
 
-autoDetect.addEventListener('change', () => {
+autoDetect.addEventListener('change', async () => {
+  savingSetting = true;
+  autoDetect.disabled = true;
   try {
-    localStorage.setItem('autoDetect', String(autoDetect.checked));
-  } catch {
-    showStorageError();
+    const response = await fetch('/ui-api/preferences', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ autoDetect: autoDetect.checked }),
+      signal: AbortSignal.timeout(5000),
+    });
+    const state = await response.json();
+    if (!response.ok) throw new Error(state.error || 'Could not save the setting.');
+    autoDetect.checked = state.account.autoDetect;
+    storageError.hidden = true;
+  } catch (error) {
+    autoDetect.checked = !autoDetect.checked;
+    storageError.hidden = false;
+    storageError.textContent = error.message;
+  } finally {
+    savingSetting = false;
+    autoDetect.disabled = false;
   }
 });
-
-window.addEventListener('storage', event => {
-  if (event.key === 'autoDetect') autoDetect.checked = event.newValue !== 'false';
-  if (event.key === null) autoDetect.checked = true;
-});
-
-/** Explain when the browser prevents settings from surviving a reload. */
-function showStorageError() {
-  storageError.hidden = false;
-  storageError.textContent = 'Browser storage is unavailable. This setting will not be saved.';
-}
+syncHesitationPreference();
+setInterval(syncHesitationPreference, 2000);
 
 /** Render the same connected, offline and pending states as the reference popup. */
 function renderConnection(state) {
