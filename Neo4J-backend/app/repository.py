@@ -18,7 +18,9 @@ def get_types(tx, ids: list[str]) -> dict[str, str]:
 
 
 def create_node(tx, node_type: str, props: dict) -> None:
-    assert node_type in NODE_TYPES
+    """Validate interpolated labels even when Python assertions are disabled."""
+    if node_type not in NODE_TYPES:
+        raise ValueError("Unknown organisation node type")
     tx.run(f"CREATE (n:OrgNode:{node_type}) SET n = $props", props=props)
 
 

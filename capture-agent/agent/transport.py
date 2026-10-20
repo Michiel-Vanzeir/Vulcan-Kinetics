@@ -12,12 +12,13 @@ Logging is counts only, never payload content.
 """
 
 import json
+import http.client
 import logging
 import queue
 import threading
 import time
 import urllib.error
-import urllib.request
+from urllib.parse import urlsplit
 from collections.abc import Callable
 from typing import Any
 
@@ -30,6 +31,27 @@ log = logging.getLogger(__name__)
 
 TIMEOUT_S = 2.0
 RETRY_DELAY_S = 0.2
+MAX_RESPONSE_BYTES = 1_048_576
+BACKEND_PATHS = frozenset({"/analyze", "/experts", "/preferences"})
+
+
+def backend_address(url: str | None) -> tuple[str, str, int] | None:
+    """Accept only a local backend origin, without DNS resolution or URL credentials."""
+    if url is None:
+        return None
+    if any(character.isspace() for character in url) or "\\" in url:
+        raise ValueError("Backend URL must be a local HTTP(S) origin")
+    parsed = urlsplit(url)
+    if (parsed.scheme not in {"http", "https"}
+            or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+            or parsed.username is not None or parsed.password is not None
+            or parsed.path not in {"", "/"} or parsed.query or parsed.fragment):
+        raise ValueError("Backend URL must be a local HTTP(S) origin")
+    host = "::1" if parsed.hostname == "::1" else "127.0.0.1"
+    port = parsed.port if parsed.port is not None else (443 if parsed.scheme == "https" else 80)
+    if not 1 <= port <= 65535:
+        raise ValueError("Invalid backend port")
+    return parsed.scheme, host, port
 
 # Keys that may be strings; every other key must be a number or a bool.
 _STRING_KEYS = {"user_id", "context_id", "trigger", "surface"}
@@ -75,6 +97,7 @@ class Transport:
         on_doubt: Callable[[list[str]], None] | None = None,
     ):
         self._config = config
+        self._address = backend_address(config.backend_url)
         self._echo = echo
         self._on_doubt = on_doubt
         self._converter = BackendPayloads()
@@ -185,14 +208,32 @@ class Transport:
 
     # THE FUNCTION THAT CROSSES THE NETWORK BOUNDARY (agent side): every request goes through here.
     def _post(self, path: str, body: dict[str, Any] | None) -> dict[str, Any]:
+        if path not in BACKEND_PATHS or self._address is None:
+            raise ValueError("Unknown backend endpoint")
+        scheme, host, port = self._address
         headers = {"Content-Type": "application/json"}
         if self._config.auth_token:
             headers["Authorization"] = f"Bearer {self._config.auth_token}"
-        request = urllib.request.Request(
-            f"{self._config.backend_url}{path}",
-            data=json.dumps(body).encode("utf-8") if body is not None else None,
-            headers=headers,
-            method="POST" if body is not None else "GET",
-        )
-        with urllib.request.urlopen(request, timeout=TIMEOUT_S) as response:
-            return json.loads(response.read() or b"{}")
+        connection_type = http.client.HTTPSConnection if scheme == "https" \
+            else http.client.HTTPConnection
+        connection = connection_type(host, port, timeout=TIMEOUT_S)
+        try:
+            # Direct connections ignore proxy environment variables and never follow redirects.
+            connection.request("POST" if body is not None else "GET", path,
+                               body=json.dumps(body).encode("utf-8") if body is not None else None,
+                               headers=headers)
+            response = connection.getresponse()
+            if not 200 <= response.status < 300:
+                raise urllib.error.HTTPError(path, response.status,
+                                             "Backend rejected request", response.headers, None)
+            content = response.read(MAX_RESPONSE_BYTES + 1)
+            if len(content) > MAX_RESPONSE_BYTES:
+                raise ValueError("Backend response is too large")
+            result = json.loads(content or b"{}")
+            if not isinstance(result, dict):
+                raise ValueError("Invalid backend response")
+            return result
+        except http.client.HTTPException as error:
+            raise OSError("Invalid backend HTTP response") from error
+        finally:
+            connection.close()

@@ -38,6 +38,14 @@ All data here is synthetic. Never load real or confidential data (AGENTS.md).
    - **Quick wiring test:** set `EMBED_BACKEND=fake` in `.env` and skip the ML extra
      (word-overlap matching only, not semantic).
 
+   Use `uv sync --locked` (or `uv sync --locked --extra ml`) for reproducible installs.
+   Security minimums also apply to installs resolved without the lockfile:
+   `python-dotenv>=1.2.4`, `sentence-transformers>=6.1.0`, `transformers>=5.20.2`,
+   and `tokenizers>=0.23.3`. The last two are existing ML transitive dependencies with
+   explicit security constraints. Model loading disables remote code and requires
+   safetensors; do not enable remote code or substitute untrusted model directories.
+   Audit evidence and advisory links: [`../docs/dependency-security.md`](../docs/dependency-security.md).
+
 3. **Create schema** (idempotent)
    ```bash
    uv run schema.py
